@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "STM32F407",
+            "includePath": [
+                "${workspaceFolder}/STM32/CMSIS/Device/ST/STM32F4xx/Include",
+                "${workspaceFolder}/STM32/CMSIS/Include",
+                "${workspaceFolder}/STM32/STM32F4xx_StdPeriph_Driver/inc",
+                "${workspaceFolder}/MY",
+                "${workspaceFolder}/Drive/Include",
+                "${workspaceFolder}/lvgl",
+                "${workspaceFolder}/lvgl/porting",
+                "${workspaceFolder}/lvgl/src/**"
+            ],
+            "defines": [
+                "USE_STDPERIPH_DRIVER",
+                "STM32F40_41xxx",
+                "LV_LVGL_H_INCLUDE_SIMPLE",
+                "LV_CONF_INCLUDE_SIMPLE"
+            ],
+            "cStandard": "c99",
+            "cppStandard": "c++11"
+        }
+    ],
+    "version": 4
+}

@@ -1,0 +1,27 @@
+# Keil uVision 构建产物与中间文件
+Project/Objects/
+Project/Listings/
+Project/DebugConfig/
+*.o
+*.crf
+*.d
+*.axf
+*.htm
+*.build_log.htm
+*.dep
+*.lnp
+*.sct
+*.map
+*.hex
+*.bin
+
+# Keil 用户界面布局/临时状态文件（与个人窗口排版有关，不提交）
+*.uvguix.*
+*.uvoptx
+*.bak
+*.orig
+*keilkill*.bat
+
+# VS Code 临时文件
+.vscode/*
+!.vscode/c_cpp_properties.json

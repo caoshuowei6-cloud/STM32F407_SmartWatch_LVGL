@@ -442,6 +442,36 @@
           </Files>
         </Group>
         <Group>
+          <GroupName>UI</GroupName>
+          <Files>
+            <File>
+              <FileName>ui_watch.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\ui_watch.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_page_clock.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\ui_page_clock.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_page_menu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\ui_page_menu.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_page_apps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\ui_page_apps.c</FilePath>
+            </File>
+            <File>
+              <FileName>ui_watch.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drive\Include\ui_watch.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
           <GroupName>STM32</GroupName>
           <Files>
             <File>

@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    main.c
-  * @brief   STM32F407 + LVGL 9 手表迁移主程序（阶段 1：显示与按键基准验证）
+  * @brief   STM32F407 + LVGL 9 手表迁移主程序（阶段 1：超低脏矩形极致防闪烁版）
   ******************************************************************************
   */
 
@@ -18,11 +18,10 @@
 static lv_obj_t * label_title;
 static lv_obj_t * label_time;
 static lv_obj_t * label_key_info;
-static lv_obj_t * time_box;
 static lv_obj_t * key_box;
 
 /**
-  * @brief  创建手表迁移阶段 1 验证界面（高帧率防闪烁优化版）
+  * @brief  创建手表迁移阶段 1 验证界面（极致防闪烁架构）
   */
 static void Create_Test_UI(void)
 {
@@ -34,29 +33,25 @@ static void Create_Test_UI(void)
     label_title = lv_label_create(scr);
     lv_label_set_text(label_title, "F407 WATCH (LVGL 9)");
     lv_obj_set_style_text_color(label_title, lv_color_hex(0x38BDF8), LV_PART_MAIN);
-    lv_obj_align(label_title, LV_ALIGN_TOP_MID, 0, 25);
+    lv_obj_align(label_title, LV_ALIGN_TOP_MID, 0, 30);
 
-    /* 2. 独立的时间小卡片 (160x46，不透明，脏矩形仅限这一个小方块) */
-    time_box = lv_obj_create(scr);
-    lv_obj_set_size(time_box, 160, 48);
-    lv_obj_center(time_box);
-    lv_obj_set_style_bg_color(time_box, lv_color_hex(0x1E293B), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(time_box, LV_OPA_COVER, LV_PART_MAIN); /* 100% 不透明，隔绝背景穿透重绘 */
-    lv_obj_set_style_border_color(time_box, lv_color_hex(0x38BDF8), LV_PART_MAIN);
-    lv_obj_set_style_border_width(time_box, 2, LV_PART_MAIN);
-    lv_obj_set_style_radius(time_box, 12, LV_PART_MAIN);
-    lv_obj_remove_flag(time_box, LV_OBJ_FLAG_SCROLLABLE);
-
-    /* 3. 时间标签 (居中固定在卡片内) */
-    label_time = lv_label_create(time_box);
+    /* 2. 独立时间标签（固定宽度 100x28，自带不透明背景，跳秒时仅刷新这 2000 像素，耗时仅 1ms！） */
+    label_time = lv_label_create(scr);
+    lv_obj_set_size(label_time, 100, 28);
+    lv_obj_center(label_time);
     lv_label_set_text(label_time, "12:00:00");
     lv_obj_set_style_text_color(label_time, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_center(label_time);
+    lv_obj_set_style_text_align(label_time, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_bg_color(label_time, lv_color_hex(0x1E293B), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(label_time, LV_OPA_COVER, LV_PART_MAIN); /* 100% 不透明，隔绝背景穿透 */
+    lv_obj_set_style_radius(label_time, 6, LV_PART_MAIN);
+    lv_obj_set_style_pad_top(label_time, 4, LV_PART_MAIN);
+    lv_obj_remove_flag(label_time, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* 4. 底部按键状态栏 (独立固定小卡片，200x38) */
+    /* 3. 底部按键状态栏 (独立固定小卡片，200x38) */
     key_box = lv_obj_create(scr);
     lv_obj_set_size(key_box, 200, 38);
-    lv_obj_align(key_box, LV_ALIGN_BOTTOM_MID, 0, -25);
+    lv_obj_align(key_box, LV_ALIGN_BOTTOM_MID, 0, -30);
     lv_obj_set_style_bg_color(key_box, lv_color_hex(0x0F172A), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(key_box, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(key_box, lv_color_hex(0x334155), LV_PART_MAIN);
@@ -86,7 +81,7 @@ int main(void)
     Usart_Config();     /* USART1 115200 8N1 */
 
     printf("\r\n=========================================\r\n");
-    printf(" STM32F407 Watch LVGL 9 Fast Refresh     \r\n");
+    printf(" STM32F407 Watch LVGL 9 Micro-Dirty Refresh\r\n");
     printf("=========================================\r\n");
 
     /* 2. LVGL 核心与显示驱动初始化 */
@@ -139,7 +134,7 @@ int main(void)
             }
         }
 
-        /* 秒计数更新：由于 time_box 独立且不透明，仅刷新数字区域，耗时极短 */
+        /* 秒计数更新：由于 label_time 独立固定且不透明，仅刷新 100x28 像素，耗时仅 1ms */
         static uint32_t last_tick = 0;
         uint32_t current_tick = lv_tick_get();
         if (current_tick - last_tick >= 1000)

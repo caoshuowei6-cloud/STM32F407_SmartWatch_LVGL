@@ -439,6 +439,46 @@
               <FileType>1</FileType>
               <FilePath>..\Drive\Source\lcd_spi_154.c</FilePath>
             </File>
+            <File>
+              <FileName>rtc_f407.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\rtc_f407.c</FilePath>
+            </File>
+            <File>
+              <FileName>adc_battery.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\adc_battery.c</FilePath>
+            </File>
+            <File>
+              <FileName>aht20.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\aht20.c</FilePath>
+            </File>
+            <File>
+              <FileName>mpu6050.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\mpu6050.c</FilePath>
+            </File>
+            <File>
+              <FileName>rtc_f407.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drive\Include\rtc_f407.h</FilePath>
+            </File>
+            <File>
+              <FileName>adc_battery.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drive\Include\adc_battery.h</FilePath>
+            </File>
+            <File>
+              <FileName>aht20.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drive\Include\aht20.h</FilePath>
+            </File>
+            <File>
+              <FileName>mpu6050.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Drive\Include\mpu6050.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -468,6 +508,11 @@
               <FileName>ui_watch.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Drive\Include\ui_watch.h</FilePath>
+            </File>
+            <File>
+              <FileName>ui_page_settime.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\ui_page_settime.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -508,6 +553,21 @@
               <FileName>stm32f4xx_spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_rtc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_pwr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_pwr.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_adc.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -27,6 +27,7 @@ typedef enum {
     UI_PAGE_EMOJI,        /* 5. 太空人/表情 (EMOJI) */
     UI_PAGE_LEVEL,        /* 6. 水平仪 (LEVEL) */
     UI_PAGE_SETTING,      /* 7. 系统信息与设置 (SETTING) */
+    UI_PAGE_SET_TIME,     /* 8. 交互式时间日期设置页 (SET TIME) */
     UI_PAGE_COUNT
 } ui_page_id_t;
 
@@ -66,7 +67,11 @@ void ui_page_sensor_update_1s(void);
 lv_obj_t * ui_page_setting_create(lv_obj_t * parent);
 void ui_page_setting_handle_key(uint8_t key_val);
 
-/* 7. 占位页面 (GAME, EMOJI, LEVEL) */
+/* 7. 交互式时间日期设置 */
+lv_obj_t * ui_page_settime_create(lv_obj_t * parent);
+void ui_page_settime_handle_key(uint8_t key_val);
+
+/* 8. 占位页面 (GAME, EMOJI, LEVEL) */
 lv_obj_t * ui_page_placeholder_create(lv_obj_t * parent, const char * title, const char * desc);
 void ui_page_placeholder_handle_key(uint8_t key_val);
 

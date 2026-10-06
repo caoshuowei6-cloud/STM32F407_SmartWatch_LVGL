@@ -3,8 +3,8 @@
 
 #include "stm32f4xx.h"
 
-void Delay_Init(void);				//延时函数初始化
-void Delay_ms(uint32_t nTime);	//毫秒延时函数
+void Delay_Init(void);
+void Delay_ms(uint32_t nTime);
+void Delay_us(uint32_t nus);
 
 #endif //__DELAY_H
-

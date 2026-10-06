@@ -10,6 +10,10 @@
 #include "delay.h"
 #include "key.h"
 #include "usart.h"
+#include "rtc_f407.h"
+#include "adc_battery.h"
+#include "aht20.h"
+#include "mpu6050.h"
 #include "lvgl.h"
 #include "lv_port_lcd_stm32.h"
 #include "ui_watch.h"
@@ -31,8 +35,13 @@ int main(void)
     KEY_Init();         /* 按键初始化 (PB1, PA6, PA4, PA15，上拉) */
     Usart_Config();     /* USART1 115200 8N1 */
 
+    RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始化 (LSE/LSI 自动容错) */
+    ADC_Battery_Init(); /* PA0 电池/电位器 12-bit ADC 初始化 */
+    AHT20_Init();       /* PB6/PB7 AHT20 温湿度传感器初始化 */
+    MPU6050_Init();     /* PF0/PF1 MPU6050 六轴传感器初始化 */
+
     printf("\r\n=========================================\r\n");
-    printf(" STM32F407 Watch LVGL 9 - Stage 2 UI Ready\r\n");
+    printf(" STM32F407 Watch LVGL 9 - Stage 4 Ready   \r\n");
     printf("=========================================\r\n");
 
     /* 2. LVGL 核心与显示驱动初始化 */

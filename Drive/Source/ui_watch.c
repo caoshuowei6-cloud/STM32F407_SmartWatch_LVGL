@@ -6,6 +6,9 @@
   */
 
 #include "ui_watch.h"
+#include "rtc_f407.h"
+#include "aht20.h"
+#include "mpu6050.h"
 #include <stdio.h>
 
 static ui_page_id_t s_current_page = UI_PAGE_CLOCK;
@@ -86,6 +89,10 @@ void UI_Watch_SwitchPage(ui_page_id_t target_page)
             ui_page_setting_create(s_page_container);
             break;
 
+        case UI_PAGE_SET_TIME:
+            ui_page_settime_create(s_page_container);
+            break;
+
         case UI_PAGE_GAME:
             ui_page_placeholder_create(s_page_container, "DINO GAME", "Stage 4 Porting...");
             break;
@@ -137,6 +144,10 @@ void UI_Watch_HandleKey(uint8_t key_val)
             ui_page_setting_handle_key(key_val);
             break;
 
+        case UI_PAGE_SET_TIME:
+            ui_page_settime_handle_key(key_val);
+            break;
+
         case UI_PAGE_GAME:
         case UI_PAGE_EMOJI:
         case UI_PAGE_LEVEL:
@@ -149,10 +160,13 @@ void UI_Watch_HandleKey(uint8_t key_val)
 }
 
 /**
-  * @brief  100ms 周期更新（秒表高频计时）
+  * @brief  100ms 周期更新（秒表高频计时与六轴姿态更新）
   */
 void UI_Watch_Update_100ms(void)
 {
+    /* 周期性执行 MPU6050 六轴姿态滤波与动态计步 */
+    MPU6050_Update();
+
     if (s_current_page == UI_PAGE_TIMER)
     {
         ui_page_timer_update_100ms();
@@ -164,6 +178,12 @@ void UI_Watch_Update_100ms(void)
   */
 void UI_Watch_Update_1s(void)
 {
+    /* 1. 推进硬件/软件时钟走时 */
+    RTC_F407_Tick1s();
+
+    /* 2. 周期性触发 AHT20 温湿度采样 */
+    AHT20_Read(NULL, NULL);
+
     if (s_current_page == UI_PAGE_CLOCK)
     {
         ui_page_clock_update_1s();

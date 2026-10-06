@@ -7,6 +7,8 @@
 
 #include "ui_watch.h"
 #include "led.h"
+#include "aht20.h"
+#include "mpu6050.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -440,7 +442,7 @@ lv_obj_t * ui_page_sensor_create(lv_obj_t * parent)
     lv_obj_align(tag_aht, LV_ALIGN_TOP_LEFT, 0, -6);
 
     s_sensor_temp_label = lv_label_create(card_aht);
-    lv_label_set_text(s_sensor_temp_label, "25.8 C   |   54.2 %RH");
+    lv_label_set_text(s_sensor_temp_label, "Reading...");
     lv_obj_set_style_text_color(s_sensor_temp_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_align(s_sensor_temp_label, LV_ALIGN_BOTTOM_LEFT, 0, 6);
 
@@ -461,7 +463,7 @@ lv_obj_t * ui_page_sensor_create(lv_obj_t * parent)
     lv_obj_align(tag_mpu, LV_ALIGN_TOP_LEFT, 0, -6);
 
     s_sensor_mpu_label = lv_label_create(card_mpu);
-    lv_label_set_text(s_sensor_mpu_label, "Pitch:+12.4  Roll:-3.2\nSteps: 1280 (Stage 4)");
+    lv_label_set_text(s_sensor_mpu_label, "Calculating...");
     lv_obj_set_style_text_color(s_sensor_mpu_label, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_align(s_sensor_mpu_label, LV_ALIGN_BOTTOM_LEFT, 0, 6);
 
@@ -481,6 +483,9 @@ lv_obj_t * ui_page_sensor_create(lv_obj_t * parent)
     lv_obj_set_style_text_color(lbl_back, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_center(lbl_back);
 
+    /* 立即刷新一次真实数据 */
+    ui_page_sensor_update_1s();
+
     return parent;
 }
 
@@ -495,7 +500,38 @@ void ui_page_sensor_handle_key(uint8_t key_val)
 
 void ui_page_sensor_update_1s(void)
 {
-    /* 阶段 4 传感器接通后，这里直接更新实时温湿度和陀螺仪数值 */
+    char temp_buf[32];
+    char mpu_buf[48];
+    float t, h;
+    float pitch, roll, yaw;
+    uint32_t steps;
+
+    if (s_sensor_temp_label == NULL || s_sensor_mpu_label == NULL) return;
+
+    if (AHT20_IsOnline())
+    {
+        t = AHT20_GetLastTemp();
+        h = AHT20_GetLastHumi();
+        snprintf(temp_buf, sizeof(temp_buf), "%.1f C   |   %.1f %%RH", t, h);
+    }
+    else
+    {
+        snprintf(temp_buf, sizeof(temp_buf), "Offline (PB6/PB7)");
+    }
+    lv_label_set_text(s_sensor_temp_label, temp_buf);
+
+    if (MPU6050_IsOnline())
+    {
+        MPU6050_GetAttitude(&pitch, &roll, &yaw);
+        steps = MPU6050_GetStepCount();
+        snprintf(mpu_buf, sizeof(mpu_buf), "P:%.1f R:%.1f Y:%.1f\nSteps: %lu",
+                 pitch, roll, yaw, (unsigned long)steps);
+    }
+    else
+    {
+        snprintf(mpu_buf, sizeof(mpu_buf), "Offline (PF0/PF1)\nCheck VCC/GND/Wire");
+    }
+    lv_label_set_text(s_sensor_mpu_label, mpu_buf);
 }
 
 

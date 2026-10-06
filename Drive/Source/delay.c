@@ -1,50 +1,60 @@
-/***
-	***************************************************************************
-	*	@file  	delay.c
-	*	@brief   delay接口相关函数
-   ***************************************************************************
-   *  @description
-	*
-	*  SysTick定时器配置为1ms中断，实现毫秒延时
-	* 	
-	***************************************************************************
-***/
+/**
+  ******************************************************************************
+  * @file    delay.c
+  * @brief   绮剧‘寰涓庢绉掑欢鏃跺疄鐜帮紙鍩轰簬 SysTick 纭欢璁℃暟鍣級
+  ******************************************************************************
+  */
 
 #include "delay.h"
 
-static __IO uint32_t TimingDelay;  //计数变量
+static __IO uint32_t TimingDelay;
 
-
-//	函数：延时初始化
-//	说明：配置 SysTick 为1ms中断，并启动定时器
-//
 void Delay_Init(void)
 {
-	SysTick_Config(SystemCoreClock / 1000);  //配置SysTick时钟为1ms中断
+    SysTick_Config(SystemCoreClock / 1000);  /* 1ms SysTick 涓柇 */
 }
 
-//	函数：计时函数
-//	说明：在 SysTick 中断服务函数里被调用
-//
 void TimingDelay_Decrement(void)
 {
-	if (TimingDelay != 0)
-	{ 
-		TimingDelay--;
-	}
+    if (TimingDelay != 0)
+    { 
+        TimingDelay--;
+    }
 }
 
-//	函数：毫秒延时
-// 参数：nTime - 延时时间，单位ms
-//	说明：每次调用都会重新给TimingDelay赋值，实现 n 毫秒的延时，最大延时 4294967295 ms。	
-//
 void Delay_ms(uint32_t nTime)
 { 
-	TimingDelay = nTime;
-
-	while(TimingDelay != 0);
+    TimingDelay = nTime;
+    while (TimingDelay != 0);
 }
 
+void Delay_us(uint32_t nus)
+{
+    uint32_t ticks;
+    uint32_t told, tnow, tcnt = 0;
+    uint32_t reload = SysTick->LOAD;
 
-
-
+    if (nus == 0) return;
+    ticks = nus * (SystemCoreClock / 1000000);
+    told = SysTick->VAL;
+    while (1)
+    {
+        tnow = SysTick->VAL;
+        if (tnow != told)
+        {
+            if (tnow < told)
+            {
+                tcnt += told - tnow;
+            }
+            else
+            {
+                tcnt += reload - tnow + told;
+            }
+            told = tnow;
+            if (tcnt >= ticks)
+            {
+                break;
+            }
+        }
+    }
+}

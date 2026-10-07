@@ -173,9 +173,8 @@ void UI_Watch_HandleKey(uint8_t key_val)
   */
 void UI_Watch_Update_100ms(void)
 {
-    /* 周期性执行 MPU6050 六轴姿态滤波与动态计步 */
-    MPU6050_Update();
-
+    /* 注意：MPU6050 六轴姿态滤波与计步已移交 Task_Sensor 专职后台任务处理，
+       UI 任务专注动效与控件刷新，消除 I2C 总线竞争与阻塞 */
     if (s_current_page == UI_PAGE_TIMER)
     {
         ui_page_timer_update_100ms();
@@ -191,16 +190,15 @@ void UI_Watch_Update_100ms(void)
 }
 
 /**
-  * @brief  1s 周期更新（时钟走时、传感器监测）
+  * @brief  1s 周期更新（时钟走时与界面数据刷新）
   */
 void UI_Watch_Update_1s(void)
 {
     /* 1. 推进硬件/软件时钟走时 */
     RTC_F407_Tick1s();
 
-    /* 2. 周期性触发 AHT20 温湿度采样 */
-    AHT20_Read(NULL, NULL);
-
+    /* 注意：AHT20 与电池电压采集已移交 Task_Sensor 后台刷新，
+       此处直接读取最新解析数据刷新界面 */
     if (s_current_page == UI_PAGE_CLOCK)
     {
         ui_page_clock_update_1s();

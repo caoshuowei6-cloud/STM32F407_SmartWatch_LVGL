@@ -14,7 +14,6 @@
 #include "key.h"
 
 volatile uint8_t Key_Num = 0;
-QueueHandle_t    g_xKeyQueue = NULL;
 
 static volatile uint16_t Key3_PressMs = 0;
 static volatile uint8_t  Key3_LongReported = 0;
@@ -40,17 +39,6 @@ void KEY_Init(void)
 }
 
 /**
-  * @brief  初始化 FreeRTOS 按键消息队列 (容量为 10 个按键事件)
-  */
-void KEY_Queue_Init(void)
-{
-    if (g_xKeyQueue == NULL)
-    {
-        g_xKeyQueue = xQueueCreate(10, sizeof(uint8_t));
-    }
-}
-
-/**
   * @brief  KEY3 独立长按检测，放在 1ms 定时中断中调用
   */
 void Key3_Tick(void)
@@ -64,17 +52,8 @@ void Key3_Tick(void)
 
         if((Key3_PressMs >= KEY3_LONG_PRESS_MS) && (Key3_LongReported == 0))
         {
-            uint8_t k = 4;
-            Key_Num = k;            /* 产生长按键值 4 (回退裸机变量) */
+            Key_Num = 4;            /* 产生长按键值 4 */
             Key3_LongReported = 1;
-
-            /* 若 FreeRTOS 调度器已启动且队列已创建，通过 ISR 队列将按键事件推送给 UI 任务 */
-            if (g_xKeyQueue != NULL && xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-            {
-                BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-                xQueueSendFromISR(g_xKeyQueue, &k, &xHigherPriorityTaskWoken);
-                portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-            }
         }
     }
     else
@@ -152,16 +131,7 @@ void Key_Tick(void)
             }
             else
             {
-                uint8_t k = PreState;
-                Key_Num = k;
-
-                /* 若 FreeRTOS 调度器已启动且队列已创建，通过 ISR 队列将按键事件推送给 UI 任务 */
-                if (g_xKeyQueue != NULL && xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
-                {
-                    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-                    xQueueSendFromISR(g_xKeyQueue, &k, &xHigherPriorityTaskWoken);
-                    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-                }
+                Key_Num = PreState;
             }
         }
     }

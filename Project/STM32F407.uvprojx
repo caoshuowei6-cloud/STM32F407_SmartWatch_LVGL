@@ -402,7 +402,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>Drive</GroupName>
+          <GroupName>BSP</GroupName>
           <Files>
             <File>
               <FileName>led.c</FileName>

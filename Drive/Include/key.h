@@ -2,9 +2,6 @@
 #define __KEY_H
 
 #include "stm32f4xx.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
 
 /* 
  * 按键硬件与接口定义（与原 F1 手表工程逻辑完全一致）
@@ -32,12 +29,8 @@
 
 #define KEY3_LONG_PRESS_MS  1000
 
-/* 全局 FreeRTOS 按键消息队列句柄 (解耦按键采集与UI消费，零漏键) */
-extern QueueHandle_t g_xKeyQueue;
-
 /* 函数声明 */
 void    KEY_Init(void);
-void    KEY_Queue_Init(void);
 uint8_t Key_GetNum(void);
 void    Key_Tick(void);
 void    Key3_Tick(void);

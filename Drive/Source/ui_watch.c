@@ -169,11 +169,13 @@ void UI_Watch_HandleKey(uint8_t key_val)
 }
 
 /**
-  * @brief  100ms 周期更新（秒表高频计时与 UI 动画刷新）
-  * @note   MPU6050 硬件解算已迁移至后台 Task_Sensor 50Hz 独立无阻塞运行，UI 层不再执行 I2C 通信
+  * @brief  100ms 周期更新（秒表高频计时与六轴姿态更新）
   */
 void UI_Watch_Update_100ms(void)
 {
+    /* 周期性执行 MPU6050 六轴姿态滤波与动态计步 */
+    MPU6050_Update();
+
     if (s_current_page == UI_PAGE_TIMER)
     {
         ui_page_timer_update_100ms();
@@ -189,15 +191,16 @@ void UI_Watch_Update_100ms(void)
 }
 
 /**
-  * @brief  1s 周期更新（时钟走时、页面传感器数据卡片刷新）
-  * @note   AHT20 硬件采样已迁移至后台 Task_Sensor 1Hz 独立无阻塞运行，UI 层只做视图渲染
+  * @brief  1s 周期更新（时钟走时、传感器监测）
   */
 void UI_Watch_Update_1s(void)
 {
     /* 1. 推进硬件/软件时钟走时 */
     RTC_F407_Tick1s();
 
-    /* 2. 页面视图组件 1s 数据卡片刷新 */
+    /* 2. 周期性触发 AHT20 温湿度采样 */
+    AHT20_Read(NULL, NULL);
+
     if (s_current_page == UI_PAGE_CLOCK)
     {
         ui_page_clock_update_1s();

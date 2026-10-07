@@ -168,7 +168,13 @@ bool AHT20_Read(float * temperature, float * humidity)
 
     if (!s_aht_online)
     {
-        /* 尝试重连 */
+        static uint32_t last_retry_tick = 0;
+        uint32_t now = lv_tick_get();
+        if (last_retry_tick != 0 && (now - last_retry_tick) < 3000)
+        {
+            return false;
+        }
+        last_retry_tick = now;
         if (!AHT20_Init()) return false;
     }
 

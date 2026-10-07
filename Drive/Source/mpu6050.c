@@ -213,6 +213,13 @@ void MPU6050_GetRawData(int16_t * ax, int16_t * ay, int16_t * az,
 
     if (!s_mpu_online)
     {
+        static uint32_t last_retry_tick = 0;
+        uint32_t now = lv_tick_get();
+        if (last_retry_tick != 0 && (now - last_retry_tick) < 3000)
+        {
+            return;
+        }
+        last_retry_tick = now;
         if (!MPU6050_Init()) return;
     }
 

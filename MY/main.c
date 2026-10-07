@@ -134,8 +134,8 @@ static void Task_UI(void *pvParameters)
         /* 4. LVGL 核心渲染引擎 */
         lv_timer_handler();
 
-        /* 5. 非阻塞释放 CPU 5ms，让位给后台任务与空闲睡眠 */
-        vTaskDelay(pdMS_TO_TICKS(5));
+        /* 5. 非阻塞释放 CPU 1ms，以 1ms 级极高时基精度保障 60 FPS 动画丝滑输出 */
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 

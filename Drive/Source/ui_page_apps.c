@@ -1245,22 +1245,22 @@ static void dino_game_loop(lv_timer_t * timer)
     /* 2. 阵亡后冻结物理引擎 */
     if (s_dino_game_over) return;
 
-    /* 3. 分数自增与速度曲线 */
+    /* 3. 分数自增与 30 FPS 黄金平滑移动速度曲线 */
     s_dino_score++;
     if (s_dino_score > s_dino_hiscore)
     {
         s_dino_hiscore = s_dino_score;
     }
-    /* 速度从 5.0 渐增至 9.0 */
-    s_cactus_speed = 5.0f + (float)(s_dino_score / 120) * 0.4f;
-    if (s_cactus_speed > 9.0f) s_cactus_speed = 9.0f;
+    /* 30 FPS 硬件下，起步速度 2.8 像素/帧，最高限速 4.8 像素/帧 (连贯顺畅，绝无闪烁跳步) */
+    s_cactus_speed = 2.8f + (float)(s_dino_score / 150) * 0.25f;
+    if (s_cactus_speed > 4.8f) s_cactus_speed = 4.8f;
 
     /* 4. 障碍物飞驰与循环生成 */
     s_cactus_x -= s_cactus_speed;
     if (s_cactus_x < -28.0f)
     {
         s_cactus_x = 240.0f + (rand() % 40);
-        s_cactus_w = (rand() % 2 == 0) ? 14 : 22;
+        s_cactus_w = (rand() % 2 == 0) ? 14 : 20;
         if (s_dino_cactus)
         {
             lv_obj_set_size(s_dino_cactus, s_cactus_w, 30);
@@ -1271,9 +1271,9 @@ static void dino_game_loop(lv_timer_t * timer)
         lv_obj_set_pos(s_dino_cactus, (int)s_cactus_x, 146);
     }
 
-    /* 5. 恐龙重力抛物线积分 */
+    /* 5. 恐龙轻盈抛物线积分 (30 FPS 经典手感：重力 g=0.85f，滞空时间 0.75 秒) */
     s_dino_y += s_dino_vy;
-    s_dino_vy += 1.15f; /* 重力加速度 g */
+    s_dino_vy += 0.85f; /* 优美重力加速度 */
     if (s_dino_y >= 144.0f)
     {
         s_dino_y = 144.0f;
@@ -1504,9 +1504,9 @@ lv_obj_t * ui_page_dino_create(lv_obj_t * parent)
     lv_obj_set_style_text_color(over_hint, lv_color_hex(0x94A3B8), LV_PART_MAIN);
     lv_obj_align(over_hint, LV_ALIGN_BOTTOM_MID, 0, -4);
 
-    /* 启动 33 FPS 实时游戏物理定时器 (30ms 周期) */
+    /* 启动与屏幕 30 FPS 刷新率 1:1 严格对齐的游戏物理定时器 (33ms 周期) */
     dino_game_restart();
-    s_dino_timer = lv_timer_create(dino_game_loop, 30, NULL);
+    s_dino_timer = lv_timer_create(dino_game_loop, 33, NULL);
 
     return parent;
 }
@@ -1523,10 +1523,10 @@ void ui_page_dino_handle_key(uint8_t key_val)
         }
         else
         {
-            /* 处于地面时立即起跳 (真实初速度 -11.0f) */
+            /* 处于地面时立即起跳 (30 FPS 最佳初速度 -9.6f，滞空轻盈) */
             if (s_dino_y >= 143.0f)
             {
-                s_dino_vy = -11.0f;
+                s_dino_vy = -9.6f;
             }
         }
     }

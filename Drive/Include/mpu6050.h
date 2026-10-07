@@ -21,8 +21,9 @@ void MPU6050_Update(void);
 /* 获取解算后的欧拉角 (俯仰角 Pitch, 横滚角 Roll, 航向角 Yaw) */
 void MPU6050_GetAttitude(float * pitch, float * roll, float * yaw);
 
-/* 获取与重置步数统计 */
+/* 获取、恢复与重置步数统计 */
 uint32_t MPU6050_GetStepCount(void);
+void     MPU6050_SetStepCount(uint32_t steps);
 void     MPU6050_ResetStepCount(void);
 
 /* 读取原始六轴数据 */

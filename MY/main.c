@@ -24,6 +24,7 @@
 #include "ui_watch.h"
 #include "esp32_wifi.h"
 #include "power_manager.h"
+#include "param_storage.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -165,12 +166,23 @@ static void Task_Sensor(void *pvParameters)
         /* 1. MPU6050 50Hz 高频互补滤波与动态计步解算 (20ms 周期) */
         MPU6050_Update();
 
-        /* 2. 1000ms 周期采样 AHT20 温湿度传感器与 PA0 电池电压 */
+        /* 抬腕亮屏手势识别：仅在息屏待机状态下进行特征匹配，亮屏后自动停止计算 */
+        if (Power_Manager_GetState() == PM_STATE_STANDBY)
+        {
+            float pitch, roll, yaw;
+            int16_t gx, gy, gz;
+            MPU6050_GetAttitude(&pitch, &roll, &yaw);
+            MPU6050_GetRawData(NULL, NULL, NULL, &gx, &gy, &gz);
+            Power_Manager_CheckWristAction(pitch, roll, gx, gy, gz);
+        }
+
+        /* 2. 1000ms 周期采样 AHT20 温湿度、PA0 电压并同步参数存储 */
         if ((xTaskGetTickCount() - last_1s_tick) >= pdMS_TO_TICKS(1000))
         {
             last_1s_tick = xTaskGetTickCount();
             AHT20_Read(NULL, NULL);
             ADC_Battery_GetVoltage();
+            Param_Storage_Sync();
         }
 
         /* 释放 CPU 20ms */
@@ -251,6 +263,7 @@ int main(void)
     MPU6050_Init();     /* PF0/PF1 MPU6050 六轴姿态传感器初始化 */
     ESP32_WiFi_Init();  /* PA2/PA3 USART2 DMA + IDLE + RingBuffer 初始化 */
     Power_Manager_Init();/* 低功耗电源管理器初始化 (PD13 背光与 15s 息屏) */
+    Param_Storage_Init();/* 两级非易失性参数存储初始化 (恢复步数/配置，跨天自动归零) */
 
     printf("\r\n=======================================================\r\n");
     printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");

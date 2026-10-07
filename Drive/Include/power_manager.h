@@ -39,4 +39,9 @@ uint16_t   Power_Manager_GetTimeout(void);
 void       Power_Manager_SetAutoSleep(bool enable);
 bool       Power_Manager_GetAutoSleep(void);
 
+/* 抬腕亮屏控制与高频姿态手势识别接口 */
+void       Power_Manager_SetWristWake(bool enable);
+bool       Power_Manager_GetWristWake(void);
+void       Power_Manager_CheckWristAction(float pitch, float roll, int16_t gx, int16_t gy, int16_t gz);
+
 #endif /* __POWER_MANAGER_H */

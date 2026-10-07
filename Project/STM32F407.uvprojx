@@ -489,6 +489,11 @@
               <FileType>1</FileType>
               <FilePath>..\Drive\Source\power_manager.c</FilePath>
             </File>
+            <File>
+              <FileName>param_storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\param_storage.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -583,6 +588,11 @@
               <FileName>stm32f4xx_dma.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_flash.c</FilePath>
             </File>
           </Files>
         </Group>

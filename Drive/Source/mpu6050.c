@@ -337,6 +337,11 @@ uint32_t MPU6050_GetStepCount(void)
     return s_step_count;
 }
 
+void MPU6050_SetStepCount(uint32_t steps)
+{
+    s_step_count = steps;
+}
+
 void MPU6050_ResetStepCount(void)
 {
     s_step_count = 0;

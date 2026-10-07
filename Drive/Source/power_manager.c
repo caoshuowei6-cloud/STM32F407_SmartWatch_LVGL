@@ -10,6 +10,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 static pm_state_t s_pm_state = PM_STATE_ACTIVE;
 static uint32_t   s_last_active_tick = 0;
@@ -109,4 +111,94 @@ void Power_Manager_SetAutoSleep(bool enable)
 bool Power_Manager_GetAutoSleep(void)
 {
     return s_auto_sleep_enabled;
+}
+
+/* ============================================================================
+   抬腕亮屏 (Raise-to-Wake) 动作特征识别算法
+   ============================================================================ */
+static bool     s_wrist_wake_enabled = true;
+static uint32_t s_last_wake_tick = 0;
+static uint8_t  s_wrist_steady_count = 0;
+static bool     s_wrist_motion_detected = false;
+static uint32_t s_motion_start_tick = 0;
+
+void Power_Manager_SetWristWake(bool enable)
+{
+    s_wrist_wake_enabled = enable;
+}
+
+bool Power_Manager_GetWristWake(void)
+{
+    return s_wrist_wake_enabled;
+}
+
+void Power_Manager_CheckWristAction(float pitch, float roll, int16_t gx, int16_t gy, int16_t gz)
+{
+    uint32_t now;
+    int32_t gyro_mag;
+    (void)gz;
+
+    if (!s_wrist_wake_enabled || s_pm_state != PM_STATE_STANDBY)
+    {
+        s_wrist_motion_detected = false;
+        s_wrist_steady_count = 0;
+        return;
+    }
+
+    now = xTaskGetTickCount();
+
+    /* 唤醒后 2 秒防抖冷却期 */
+    if ((now - s_last_wake_tick) < pdMS_TO_TICKS(2000))
+    {
+        return;
+    }
+
+    gyro_mag = (int32_t)abs(gx) + (int32_t)abs(gy);
+
+    /* 1. 检测翻转角速度启动特征 */
+    if (!s_wrist_motion_detected)
+    {
+        if (gyro_mag > 2200)
+        {
+            s_wrist_motion_detected = true;
+            s_motion_start_tick = now;
+            s_wrist_steady_count = 0;
+        }
+    }
+    else
+    {
+        /* 2. 运动时间窗口 (150ms ~ 900ms) */
+        uint32_t elapsed = now - s_motion_start_tick;
+        if (elapsed > pdMS_TO_TICKS(900))
+        {
+            s_wrist_motion_detected = false;
+            s_wrist_steady_count = 0;
+            return;
+        }
+
+        /* 3. 看表视线区间与稳定度检查 */
+        bool is_viewing_angle = (pitch >= -35.0f && pitch <= 40.0f) &&
+                                (roll  >= -40.0f && roll  <= 40.0f);
+        bool is_steady = (gyro_mag < 2500);
+
+        if (is_viewing_angle && is_steady)
+        {
+            s_wrist_steady_count++;
+            if (s_wrist_steady_count >= 3)
+            {
+                printf("\r\n[PowerManager] >>> Wrist-Raise Gesture Detected! (Pitch:%.1f, Roll:%.1f) Screen On! <<<\r\n", pitch, roll);
+                Power_Manager_Wakeup();
+                s_last_wake_tick = now;
+                s_wrist_motion_detected = false;
+                s_wrist_steady_count = 0;
+            }
+        }
+        else
+        {
+            if (s_wrist_steady_count > 0)
+            {
+                s_wrist_steady_count--;
+            }
+        }
+    }
 }

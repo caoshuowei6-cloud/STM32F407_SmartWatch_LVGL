@@ -1,11 +1,16 @@
 /**
   ******************************************************************************
   * @file    main.c
-  * @brief   STM32F407 + LVGL 9 手表主程序（阶段 2：多页面状态机与业务导航）
+  * @brief   STM32F407 + LVGL 9 手表主程序（FreeRTOS V10.4.3 多任务分层架构）
   ******************************************************************************
   */
 
 #include "stm32f4xx.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
 #include "led.h"
 #include "delay.h"
 #include "key.h"
@@ -19,50 +24,82 @@
 #include "ui_watch.h"
 #include <stdio.h>
 
-
-void vAssertCalled(const char *file,int line){
-
-}
-
-
-/**
-  * @brief  主函数入口
-  */
-int main(void)
+/* ============================================================================
+   FreeRTOS 故障与断言钩子函数
+   ============================================================================ */
+void vAssertCalled(const char *file, int line)
 {
-    uint8_t key_val = 0;
-    static uint32_t last_100ms_tick = 0;
-    static uint32_t last_1s_tick = 0;
-    uint32_t current_tick;
-
-    /* 1. 板级外设初始化 */
-    Delay_Init();       /* SysTick 1ms 初始化 (同时提供 lv_tick_inc 与按键时基) */
-    LED_Init();         /* PC13 绿灯 (低电平亮) */
-    KEY_Init();         /* 按键初始化 (PB1, PA6, PA4, PA15，上拉) */
-    Usart_Config();     /* USART1 115200 8N1 */
-
-    RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始化 (LSE/LSI 自动容错) */
-    ADC_Battery_Init(); /* PA0 电池/电位器 12-bit ADC 初始化 */
-    AHT20_Init();       /* PB6/PB7 AHT20 温湿度传感器初始化 */
-    MPU6050_Init();     /* PF0/PF1 MPU6050 六轴传感器初始化 */
-
-    printf("\r\n=========================================\r\n");
-    printf(" STM32F407 Watch LVGL 9 - Stage 4 Ready   \r\n");
-    printf("=========================================\r\n");
-
-    /* 2. LVGL 核心与显示驱动初始化 */
-    lv_init();
-    lv_port_disp_init();
-
-    /* 3. 初始化手表页面架构（进入主表盘） */
-    UI_Watch_Init();
-
-    printf("UI Manager Initialized (Default: Clock Page)\r\n");
-
-    /* 4. 主循环 */
+    printf("\r\n[ASSERT FAILED] %s : %d\r\n", file, line);
+    taskDISABLE_INTERRUPTS();
     while (1)
     {
-        /* 获取按键输入 (非阻塞) */
+    }
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    printf("\r\n[FATAL ERROR] Stack Overflow detected in task: %s!\r\n", pcTaskName);
+    taskDISABLE_INTERRUPTS();
+    while (1)
+    {
+    }
+}
+
+void vApplicationMallocFailedHook(void)
+{
+    printf("\r\n[FATAL ERROR] FreeRTOS Malloc Failed (Heap Exhausted)!\r\n");
+    taskDISABLE_INTERRUPTS();
+    while (1)
+    {
+    }
+}
+
+/* ============================================================================
+   任务 1: Task_Heartbeat (系统心跳与健康自检任务)
+   - 优先级: 1 (低优先级，监控空闲调度)
+   - 栈大小: 256 words (1024 字节)
+   ============================================================================ */
+static void Task_Heartbeat(void *pvParameters)
+{
+    uint32_t beat_count = 0;
+    (void)pvParameters;
+
+    printf("[FreeRTOS] Heartbeat Task Initialized (Priority 1).\r\n");
+
+    while (1)
+    {
+        /* 翻转 PC13 绿灯 (低电平亮，500ms 周期指示操作系统平稳运行) */
+        LED1_Toggle;
+        vTaskDelay(pdMS_TO_TICKS(500));
+
+        beat_count++;
+        /* 每 5 秒输出一次心跳与剩余堆内存大小 */
+        if ((beat_count % 10) == 0)
+        {
+            printf("[OS Heartbeat] UpTime: %u s | Free Heap: %u bytes\r\n",
+                   (unsigned int)(beat_count / 2),
+                   (unsigned int)xPortGetFreeHeapSize());
+        }
+    }
+}
+
+/* ============================================================================
+   任务 2: Task_UI (手表图形界面与交互调度任务)
+   - 优先级: 2 (中优先级，保障界面丝滑响应)
+   - 栈大小: 1024 words (4096 字节)
+   ============================================================================ */
+static void Task_UI(void *pvParameters)
+{
+    uint8_t key_val = 0;
+    TickType_t last_100ms_tick = xTaskGetTickCount();
+    TickType_t last_1s_tick = xTaskGetTickCount();
+    (void)pvParameters;
+
+    printf("[FreeRTOS] UI Task Initialized (Priority 2).\r\n");
+
+    while (1)
+    {
+        /* 1. 按键输入检测与页面事件分发 */
         key_val = Key_GetNum();
         if (key_val != 0)
         {
@@ -70,27 +107,75 @@ int main(void)
             UI_Watch_HandleKey(key_val);
         }
 
-        /* 周期性任务调度 */
-        current_tick = lv_tick_get();
-
-        /* 100ms 周期（秒表计时） */
-        if (current_tick - last_100ms_tick >= 100)
+        /* 2. 100ms 周期业务刷新 (秒表、水平仪、电子萌宠表情包) */
+        if ((xTaskGetTickCount() - last_100ms_tick) >= pdMS_TO_TICKS(100))
         {
-            last_100ms_tick = current_tick;
+            last_100ms_tick = xTaskGetTickCount();
             UI_Watch_Update_100ms();
         }
 
-        /* 1000ms 周期（时钟走时、传感器监测） */
-        if (current_tick - last_1s_tick >= 1000)
+        /* 3. 1000ms 周期业务刷新 (硬件日历时钟、电池ADC、温湿度监测) */
+        if ((xTaskGetTickCount() - last_1s_tick) >= pdMS_TO_TICKS(1000))
         {
-            last_1s_tick = current_tick;
+            last_1s_tick = xTaskGetTickCount();
             UI_Watch_Update_1s();
         }
 
-        /* LVGL 核心任务处理器 */
+        /* 4. LVGL 核心渲染引擎 */
         lv_timer_handler();
 
-        /* 短暂延时，释放 CPU */
-        Delay_ms(5);
+        /* 5. 非阻塞释放 CPU 5ms，调度器切换至其他任务或进入空闲睡眠 */
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
+
+/* ============================================================================
+   主函数入口
+   ============================================================================ */
+int main(void)
+{
+    /* 1. NVIC 中断优先级分组：必须配置为 4 (所有 4 位均为抢占优先级，FreeRTOS 铁律) */
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+
+    /* 2. 板级外设驱动初始化 */
+    Delay_Init();       /* SysTick 1ms 初始化 (同时提供裸机启动期时基) */
+    LED_Init();         /* PC13 绿灯 (低电平亮) */
+    KEY_Init();         /* 按键初始化 (PB1, PA6, PA4, PA15) */
+    Usart_Config();     /* USART1 115200 8N1 */
+
+    RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始化 (LSE/LSI 自动容错) */
+    ADC_Battery_Init(); /* PA0 电池 12-bit ADC 初始化 */
+    AHT20_Init();       /* PB6/PB7 AHT20 温湿度传感器初始化 */
+    MPU6050_Init();     /* PF0/PF1 MPU6050 六轴姿态传感器初始化 */
+
+    printf("\r\n=======================================================\r\n");
+    printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");
+    printf("   Core Clock: %u MHz | RTOS Heap: %u KB                \r\n",
+           (unsigned int)(SystemCoreClock / 1000000),
+           (unsigned int)(configTOTAL_HEAP_SIZE / 1024));
+    printf("=======================================================\r\n");
+
+    /* 3. LVGL 核心与显示驱动初始化 */
+    lv_init();
+    lv_port_disp_init();
+
+    /* 4. 初始化手表多页面状态机（进入主表盘） */
+    UI_Watch_Init();
+    printf("UI Manager Initialized (Default: Clock Page)\r\n");
+
+    /* 5. 创建 FreeRTOS 任务 */
+    xTaskCreate(Task_UI,        "Task_UI",        1024, NULL, 2, NULL);
+    xTaskCreate(Task_Heartbeat, "Task_Heartbeat", 256,  NULL, 1, NULL);
+
+    printf("Starting FreeRTOS Scheduler...\r\n");
+
+    /* 6. 启动任务调度器 (从此交由 FreeRTOS 多任务内核掌管系统) */
+    vTaskStartScheduler();
+
+    /* 正常情况下调度器绝不返回，若返回则说明堆内存耗尽 */
+    while (1)
+    {
+        LED1_Toggle;
+        Delay_ms(100);
     }
 }

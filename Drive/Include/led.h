@@ -3,22 +3,23 @@
 
 #include "stm32f4xx.h"
 
-/*---------------------- LEDÅäÖÃºê ------------------------*/
+/*---------------------- LED å¼•è„šå® ------------------------*/
 
-#define LED1_PIN             GPIO_Pin_13       		 // LED1 Òı½Å      
-#define LED1_PORT            GPIOC                  // LED1 GPIO¶Ë¿Ú     
-#define LED1_CLK             RCC_AHB1Periph_GPIOC	 // LED1 GPIO¶Ë¿ÚÊ±ÖÓ
+#define LED1_PIN             GPIO_Pin_13       		 // LED1 å¼•è„š (æ¿è½½ç»¿ç¯)
+#define LED1_PORT            GPIOC                   // LED1 GPIO ç«¯å£     
+#define LED1_CLK             RCC_AHB1Periph_GPIOC	 // LED1 GPIO æ—¶é’Ÿ
 
-/*---------------------- LED¿ØÖÆºê ------------------------*/
+/*---------------------- LED æ§åˆ¶å® ------------------------*/
 					
-#define LED1_ON 	  GPIO_ResetBits(LED1_PORT,LED1_PIN)			// Êä³öµÍµçÆ½£¬µãÁÁLED1	
-#define LED1_OFF 	  GPIO_SetBits(LED1_PORT,LED1_PIN)				// Êä³ö¸ßµçÆ½£¬¹Ø±ÕLED1	
-#define LED1_Toggle	GPIO_ToggleBits(LED1_PORT, LED1_PIN)		// LED×´Ì¬·­×ª
+#define LED1_ON 	    GPIO_ResetBits(LED1_PORT, LED1_PIN)			// ä½ç”µå¹³ç‚¹äº® LED1	
+#define LED1_OFF 	    GPIO_SetBits(LED1_PORT, LED1_PIN)			// é«˜ç”µå¹³ç†„ç­ LED1	
+#define LED1_Toggle	    GPIO_ToggleBits(LED1_PORT, LED1_PIN)		// LED1 çŠ¶æ€ç¿»è½¬
 
+#define LED_Toggle()    GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // å…¼å®¹å¸¦æ‹¬å·è°ƒç”¨
+#define LED_Toggle      GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // å…¼å®¹æ— æ‹¬å·è°ƒç”¨
 
-/*---------------------- º¯ÊıÉùÃ÷ ----------------------------*/
+/*---------------------- å‡½æ•°å£°æ˜ ----------------------------*/
 
-void LED_Init(void);	//LED³õÊ¼»¯º¯Êı
+void LED_Init(void);	// LED åˆå§‹åŒ–
 
-#endif //__LED_H
-
+#endif // __LED_H

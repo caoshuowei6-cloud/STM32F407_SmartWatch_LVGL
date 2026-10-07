@@ -484,6 +484,11 @@
               <FileType>1</FileType>
               <FilePath>..\Drive\Source\esp32_wifi.c</FilePath>
             </File>
+            <File>
+              <FileName>power_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\power_manager.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

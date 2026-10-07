@@ -15,6 +15,15 @@
 #define ESP32_RX_DMA_BUF_SIZE     512   /* DMA 单次硬件循环接收缓冲区 */
 #define ESP32_RING_BUF_SIZE       1024  /* 环形消息队列容量 (抗突发网络报文削峰) */
 
+/* 默认 Wi-Fi 热点配置 (对标原 F1 工程，可按需修改) */
+#ifndef WIFI_STA_SSID
+#define WIFI_STA_SSID "csw"
+#endif
+
+#ifndef WIFI_STA_PASS
+#define WIFI_STA_PASS "87654321"
+#endif
+
 /* WiFi 运行状态枚举 */
 typedef enum
 {
@@ -28,12 +37,14 @@ typedef enum
 void ESP32_WiFi_Init(void);
 bool ESP32_WiFi_IsOnline(void);
 esp32_wifi_state_t ESP32_WiFi_GetState(void);
+const char * ESP32_WiFi_GetIP(void);
 
 /* AT 指令与网络功能 */
 bool ESP32_SendCmd(const char * cmd, const char * expected_ack, uint32_t timeout_ms);
+bool ESP32_SendCmdEx(const char * cmd, const char * expected_ack, uint32_t timeout_ms, char * out_resp, uint16_t out_resp_size);
 bool ESP32_ConnectAP(const char * ssid, const char * pwd);
 bool ESP32_SyncNTPTime(void);
-bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float bat_vol);
+bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, float roll);
 
 /* FreeRTOS 后台任务定期轮询状态机 */
 void ESP32_WiFi_TaskLoop(void);

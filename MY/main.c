@@ -23,6 +23,7 @@
 #include "lv_port_lcd_stm32.h"
 #include "ui_watch.h"
 #include "esp32_wifi.h"
+#include "power_manager.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -112,6 +113,11 @@ static void Task_UI(void *pvParameters)
             {
                 if (key_val != 0)
                 {
+                    /* 低功耗电源管理：若息屏则立即点亮背光并拦截本次按键防误触 */
+                    if (Power_Manager_OnKey(key_val))
+                    {
+                        continue;
+                    }
                     printf("[KeyQueue] Recv: %d\r\n", key_val);
                     UI_Watch_HandleKey(key_val);
                 }
@@ -125,11 +131,12 @@ static void Task_UI(void *pvParameters)
             UI_Watch_Update_100ms();
         }
 
-        /* 3. 1000ms 周期业务刷新 (硬件日历时钟走时、表盘页面数据更新) */
+        /* 3. 1000ms 周期业务刷新 (硬件日历时钟走时、表盘页面数据更新、低功耗自动休眠) */
         if ((xTaskGetTickCount() - last_1s_tick) >= pdMS_TO_TICKS(1000))
         {
             last_1s_tick = xTaskGetTickCount();
             UI_Watch_Update_1s();
+            Power_Manager_Update();
         }
 
         /* 4. LVGL 核心渲染引擎 */
@@ -243,6 +250,7 @@ int main(void)
     AHT20_Init();       /* PB6/PB7 AHT20 温湿度传感器初始化 */
     MPU6050_Init();     /* PF0/PF1 MPU6050 六轴姿态传感器初始化 */
     ESP32_WiFi_Init();  /* PA2/PA3 USART2 DMA + IDLE + RingBuffer 初始化 */
+    Power_Manager_Init();/* 低功耗电源管理器初始化 (PD13 背光与 15s 息屏) */
 
     printf("\r\n=======================================================\r\n");
     printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");

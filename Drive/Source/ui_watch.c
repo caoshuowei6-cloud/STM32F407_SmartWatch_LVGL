@@ -94,15 +94,15 @@ void UI_Watch_SwitchPage(ui_page_id_t target_page)
             break;
 
         case UI_PAGE_GAME:
-            ui_page_placeholder_create(s_page_container, "DINO GAME", "Stage 4 Porting...");
+            ui_page_placeholder_create(s_page_container, "DINO GAME", "Wait for FreeRTOS Task");
             break;
 
         case UI_PAGE_EMOJI:
-            ui_page_placeholder_create(s_page_container, "EMOJI / ASTRO", "Astronaut Animation");
+            ui_page_emoji_create(s_page_container);
             break;
 
         case UI_PAGE_LEVEL:
-            ui_page_placeholder_create(s_page_container, "SPIRIT LEVEL", "Wait for MPU6050 I2C");
+            ui_page_level_create(s_page_container);
             break;
 
         default:
@@ -148,9 +148,15 @@ void UI_Watch_HandleKey(uint8_t key_val)
             ui_page_settime_handle_key(key_val);
             break;
 
-        case UI_PAGE_GAME:
-        case UI_PAGE_EMOJI:
         case UI_PAGE_LEVEL:
+            ui_page_level_handle_key(key_val);
+            break;
+
+        case UI_PAGE_EMOJI:
+            ui_page_emoji_handle_key(key_val);
+            break;
+
+        case UI_PAGE_GAME:
             ui_page_placeholder_handle_key(key_val);
             break;
 
@@ -170,6 +176,14 @@ void UI_Watch_Update_100ms(void)
     if (s_current_page == UI_PAGE_TIMER)
     {
         ui_page_timer_update_100ms();
+    }
+    else if (s_current_page == UI_PAGE_LEVEL)
+    {
+        ui_page_level_update_100ms();
+    }
+    else if (s_current_page == UI_PAGE_EMOJI)
+    {
+        ui_page_emoji_update_100ms();
     }
 }
 

@@ -71,7 +71,17 @@ void ui_page_setting_handle_key(uint8_t key_val);
 lv_obj_t * ui_page_settime_create(lv_obj_t * parent);
 void ui_page_settime_handle_key(uint8_t key_val);
 
-/* 8. 占位页面 (GAME, EMOJI, LEVEL) */
+/* 8. 水平仪 (LEVEL) */
+lv_obj_t * ui_page_level_create(lv_obj_t * parent);
+void ui_page_level_handle_key(uint8_t key_val);
+void ui_page_level_update_100ms(void);
+
+/* 9. 动态表情包 (EMOJI) */
+lv_obj_t * ui_page_emoji_create(lv_obj_t * parent);
+void ui_page_emoji_handle_key(uint8_t key_val);
+void ui_page_emoji_update_100ms(void);
+
+/* 10. 占位页面 (GAME) */
 lv_obj_t * ui_page_placeholder_create(lv_obj_t * parent, const char * title, const char * desc);
 void ui_page_placeholder_handle_key(uint8_t key_val);
 

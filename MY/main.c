@@ -19,6 +19,12 @@
 #include "ui_watch.h"
 #include <stdio.h>
 
+
+void vAssertCalled(const char *file,int line){
+
+}
+
+
 /**
   * @brief  主函数入口
   */

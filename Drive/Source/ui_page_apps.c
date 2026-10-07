@@ -10,6 +10,7 @@
 #include "aht20.h"
 #include "mpu6050.h"
 #include <stdio.h>
+#include <math.h>
 
 /* ============================================================================
    1. 秒表计时器 (TIMER)
@@ -612,7 +613,560 @@ void ui_page_setting_handle_key(uint8_t key_val)
 
 
 /* ============================================================================
-   5. 通用占位页 (GAME, EMOJI, LEVEL)
+   5. 水平仪应用 (SPIRIT LEVEL)
+   ============================================================================ */
+static lv_obj_t * s_level_bubble = NULL;
+static lv_obj_t * s_level_target_ring = NULL;
+static lv_obj_t * s_level_status_label = NULL;
+static float      s_calib_pitch = 0.0f;
+static float      s_calib_roll  = 0.0f;
+
+lv_obj_t * ui_page_level_create(lv_obj_t * parent)
+{
+    lv_obj_t * top_bar;
+    lv_obj_t * label_title;
+    lv_obj_t * card_dial;
+    lv_obj_t * outer_ring;
+    lv_obj_t * mid_ring;
+    lv_obj_t * cross_h;
+    lv_obj_t * cross_v;
+    lv_obj_t * center_dot;
+    lv_obj_t * btn_back;
+    lv_obj_t * lbl_back;
+    lv_obj_t * hint;
+
+    /* 顶部标头栏 (216x24) */
+    top_bar = lv_obj_create(parent);
+    lv_obj_set_size(top_bar, 216, 24);
+    lv_obj_set_pos(top_bar, 12, 10);
+    lv_obj_set_style_bg_opa(top_bar, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(top_bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(top_bar, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
+
+    label_title = lv_label_create(top_bar);
+    lv_label_set_text(label_title, "SPIRIT LEVEL");
+    lv_obj_set_style_text_color(label_title, lv_color_hex(0x06B6D4), LV_PART_MAIN);
+    lv_obj_align(label_title, LV_ALIGN_LEFT_MID, 0, 0);
+
+    /* 中央刻度卡片 (216x136) */
+    card_dial = lv_obj_create(parent);
+    lv_obj_set_size(card_dial, 216, 136);
+    lv_obj_set_pos(card_dial, 12, 38);
+    lv_obj_set_style_bg_color(card_dial, lv_color_hex(0x0F172A), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(card_dial, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(card_dial, lv_color_hex(0x1E293B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(card_dial, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(card_dial, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(card_dial, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(card_dial, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 刻度盘中心: (108, 56) */
+    /* 外环圈 (100x100, 半径 50) */
+    outer_ring = lv_obj_create(card_dial);
+    lv_obj_set_size(outer_ring, 100, 100);
+    lv_obj_set_pos(outer_ring, 108 - 50, 56 - 50);
+    lv_obj_set_style_radius(outer_ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(outer_ring, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_color(outer_ring, lv_color_hex(0x334155), LV_PART_MAIN);
+    lv_obj_set_style_border_width(outer_ring, 2, LV_PART_MAIN);
+    lv_obj_remove_flag(outer_ring, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 中圈 (60x60, 半径 30) */
+    mid_ring = lv_obj_create(card_dial);
+    lv_obj_set_size(mid_ring, 60, 60);
+    lv_obj_set_pos(mid_ring, 108 - 30, 56 - 30);
+    lv_obj_set_style_radius(mid_ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(mid_ring, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_color(mid_ring, lv_color_hex(0x1E293B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(mid_ring, 1, LV_PART_MAIN);
+    lv_obj_remove_flag(mid_ring, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 十字基准线 */
+    cross_h = lv_obj_create(card_dial);
+    lv_obj_set_size(cross_h, 100, 1);
+    lv_obj_set_pos(cross_h, 108 - 50, 56);
+    lv_obj_set_style_bg_color(cross_h, lv_color_hex(0x1E293B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(cross_h, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(cross_h, LV_OBJ_FLAG_SCROLLABLE);
+
+    cross_v = lv_obj_create(card_dial);
+    lv_obj_set_size(cross_v, 1, 100);
+    lv_obj_set_pos(cross_v, 108, 56 - 50);
+    lv_obj_set_style_bg_color(cross_v, lv_color_hex(0x1E293B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(cross_v, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(cross_v, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 内部中心目标圈 (28x28, 半径 14) */
+    s_level_target_ring = lv_obj_create(card_dial);
+    lv_obj_set_size(s_level_target_ring, 28, 28);
+    lv_obj_set_pos(s_level_target_ring, 108 - 14, 56 - 14);
+    lv_obj_set_style_radius(s_level_target_ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_level_target_ring, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_level_target_ring, lv_color_hex(0x0284C7), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_level_target_ring, 2, LV_PART_MAIN);
+    lv_obj_remove_flag(s_level_target_ring, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 中心红心点 (4x4) */
+    center_dot = lv_obj_create(card_dial);
+    lv_obj_set_size(center_dot, 4, 4);
+    lv_obj_set_pos(center_dot, 108 - 2, 56 - 2);
+    lv_obj_set_style_radius(center_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(center_dot, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_set_style_border_width(center_dot, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(center_dot, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 动态流体气泡 (20x20) */
+    s_level_bubble = lv_obj_create(card_dial);
+    lv_obj_set_size(s_level_bubble, 20, 20);
+    lv_obj_set_pos(s_level_bubble, 108 - 10, 56 - 10);
+    lv_obj_set_style_radius(s_level_bubble, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_level_bubble, lv_color_hex(0x0EA5E9), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_level_bubble, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_level_bubble, lv_color_hex(0x38BDF8), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_level_bubble, 2, LV_PART_MAIN);
+    lv_obj_remove_flag(s_level_bubble, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 实时角度与状态标签 (200x20) */
+    s_level_status_label = lv_label_create(card_dial);
+    lv_obj_set_size(s_level_status_label, 200, 20);
+    lv_obj_set_pos(s_level_status_label, 8, 110);
+    lv_obj_set_style_text_align(s_level_status_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(s_level_status_label, "Measuring...");
+    lv_obj_set_style_text_color(s_level_status_label, lv_color_hex(0x94A3B8), LV_PART_MAIN);
+    lv_obj_remove_flag(s_level_status_label, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 底部返回按钮 (216x40) */
+    btn_back = lv_obj_create(parent);
+    lv_obj_set_size(btn_back, 216, 40);
+    lv_obj_set_pos(btn_back, 12, 178);
+    lv_obj_set_style_bg_color(btn_back, lv_color_hex(0x0284C7), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn_back, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn_back, lv_color_hex(0x38BDF8), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn_back, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(btn_back, 8, LV_PART_MAIN);
+    lv_obj_remove_flag(btn_back, LV_OBJ_FLAG_SCROLLABLE);
+
+    lbl_back = lv_label_create(btn_back);
+    lv_label_set_text(lbl_back, "BACK TO MENU (KEY3)");
+    lv_obj_set_style_text_color(lbl_back, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_center(lbl_back);
+
+    /* 操作指引 */
+    hint = lv_label_create(parent);
+    lv_label_set_text(hint, "K1: Zero  K2: Reset  K3: Exit");
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -4);
+
+    return parent;
+}
+
+void ui_page_level_handle_key(uint8_t key_val)
+{
+    float p, r, y;
+
+    if (key_val == 1)
+    {
+        /* KEY1: 相对归零校准（将当前摆放姿态设为水平基准） */
+        MPU6050_GetAttitude(&p, &r, &y);
+        s_calib_pitch = p;
+        s_calib_roll  = r;
+    }
+    else if (key_val == 2)
+    {
+        /* KEY2: 重置校准，恢复绝对地心引力水平 */
+        s_calib_pitch = 0.0f;
+        s_calib_roll  = 0.0f;
+    }
+    else if (key_val == 3 || key_val == 4)
+    {
+        /* KEY3: 返回应用菜单 */
+        UI_Watch_SwitchPage(UI_PAGE_MENU);
+    }
+}
+
+void ui_page_level_update_100ms(void)
+{
+    float raw_p, raw_r, raw_y;
+    float p, r;
+    float dx, dy, dist;
+    const float max_radius = 40.0f; /* 限制在 100px 圈内 */
+    int bx, by;
+    char buf[36];
+
+    if (s_level_bubble == NULL || s_level_status_label == NULL) return;
+
+    MPU6050_GetAttitude(&raw_p, &raw_r, &raw_y);
+    p = raw_p - s_calib_pitch;
+    r = raw_r - s_calib_roll;
+
+    /* 物理坐标映射：倾角转换为像素位移 (1° 对应 2.0 像素) */
+    dx = -r * 2.0f;
+    dy = p * 2.0f;
+
+    dist = sqrtf(dx * dx + dy * dy);
+    if (dist > max_radius)
+    {
+        dx = dx * (max_radius / dist);
+        dy = dy * (max_radius / dist);
+    }
+
+    bx = (int)(108.0f + dx - 10.0f);
+    by = (int)(56.0f + dy - 10.0f);
+    lv_obj_set_pos(s_level_bubble, bx, by);
+
+    /* 检测是否水平平衡（±2.0° 视为完美水平） */
+    if (fabsf(p) <= 2.0f && fabsf(r) <= 2.0f)
+    {
+        /* 水平平衡：高亮翠绿 */
+        lv_obj_set_style_bg_color(s_level_bubble, lv_color_hex(0x16A34A), LV_PART_MAIN);
+        lv_obj_set_style_border_color(s_level_bubble, lv_color_hex(0x4ADE80), LV_PART_MAIN);
+        if (s_level_target_ring)
+        {
+            lv_obj_set_style_border_color(s_level_target_ring, lv_color_hex(0x22C55E), LV_PART_MAIN);
+        }
+        snprintf(buf, sizeof(buf), "[ LEVEL BALANCED (0.0) ]");
+        lv_obj_set_style_text_color(s_level_status_label, lv_color_hex(0x4ADE80), LV_PART_MAIN);
+    }
+    else
+    {
+        /* 倾斜状态：高科技天蓝 */
+        lv_obj_set_style_bg_color(s_level_bubble, lv_color_hex(0x0284C7), LV_PART_MAIN);
+        lv_obj_set_style_border_color(s_level_bubble, lv_color_hex(0x38BDF8), LV_PART_MAIN);
+        if (s_level_target_ring)
+        {
+            lv_obj_set_style_border_color(s_level_target_ring, lv_color_hex(0x0284C7), LV_PART_MAIN);
+        }
+        snprintf(buf, sizeof(buf), "P: %+.1f deg | R: %+.1f deg", p, r);
+        lv_obj_set_style_text_color(s_level_status_label, lv_color_hex(0x94A3B8), LV_PART_MAIN);
+    }
+    lv_label_set_text(s_level_status_label, buf);
+}
+
+
+/* ============================================================================
+   6. 动态表情包 / 电子萌宠 (CYBER PET EMOJI)
+   ============================================================================ */
+static lv_obj_t * s_emoji_eye_l = NULL;
+static lv_obj_t * s_emoji_eye_r = NULL;
+static lv_obj_t * s_emoji_eyebrow_l = NULL;
+static lv_obj_t * s_emoji_eyebrow_r = NULL;
+static lv_obj_t * s_emoji_blush_l = NULL;
+static lv_obj_t * s_emoji_blush_r = NULL;
+static lv_obj_t * s_emoji_mouth = NULL;
+static lv_obj_t * s_emoji_mood_label = NULL;
+
+static uint8_t  s_emoji_mode = 0;   /* 0:AUTO, 1:HAPPY, 2:WINK, 3:SURPRISED, 4:SLEEPY */
+static uint16_t s_emoji_tick = 0;
+
+lv_obj_t * ui_page_emoji_create(lv_obj_t * parent)
+{
+    lv_obj_t * top_bar;
+    lv_obj_t * label_title;
+    lv_obj_t * card_face;
+    lv_obj_t * btn_back;
+    lv_obj_t * lbl_back;
+    lv_obj_t * hint;
+
+    /* 顶部标头栏 (216x24) */
+    top_bar = lv_obj_create(parent);
+    lv_obj_set_size(top_bar, 216, 24);
+    lv_obj_set_pos(top_bar, 12, 10);
+    lv_obj_set_style_bg_opa(top_bar, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(top_bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(top_bar, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
+
+    label_title = lv_label_create(top_bar);
+    lv_label_set_text(label_title, "CYBER PET");
+    lv_obj_set_style_text_color(label_title, lv_color_hex(0xEC4899), LV_PART_MAIN);
+    lv_obj_align(label_title, LV_ALIGN_LEFT_MID, 0, 0);
+
+    s_emoji_mood_label = lv_label_create(top_bar);
+    lv_label_set_text(s_emoji_mood_label, "MODE: AUTO");
+    lv_obj_set_style_text_color(s_emoji_mood_label, lv_color_hex(0xF472B6), LV_PART_MAIN);
+    lv_obj_align(s_emoji_mood_label, LV_ALIGN_RIGHT_MID, 0, 0);
+
+    /* 呆萌脸庞主卡片 (216x136) */
+    card_face = lv_obj_create(parent);
+    lv_obj_set_size(card_face, 216, 136);
+    lv_obj_set_pos(card_face, 12, 38);
+    lv_obj_set_style_bg_color(card_face, lv_color_hex(0x181024), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(card_face, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(card_face, lv_color_hex(0x2D1B4E), LV_PART_MAIN);
+    lv_obj_set_style_border_width(card_face, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(card_face, 16, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(card_face, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(card_face, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 左/右 眉毛 (26x5) */
+    s_emoji_eyebrow_l = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_eyebrow_l, 26, 5);
+    lv_obj_set_pos(s_emoji_eyebrow_l, 54, 28);
+    lv_obj_set_style_bg_color(s_emoji_eyebrow_l, lv_color_hex(0xE2E8F0), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_eyebrow_l, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_eyebrow_l, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_eyebrow_l, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_emoji_eyebrow_r = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_eyebrow_r, 26, 5);
+    lv_obj_set_pos(s_emoji_eyebrow_r, 136, 28);
+    lv_obj_set_style_bg_color(s_emoji_eyebrow_r, lv_color_hex(0xE2E8F0), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_eyebrow_r, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_eyebrow_r, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_eyebrow_r, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 左/右 大眼睛 (30x30 圆形) */
+    s_emoji_eye_l = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_eye_l, 30, 30);
+    lv_obj_set_pos(s_emoji_eye_l, 52, 42);
+    lv_obj_set_style_bg_color(s_emoji_eye_l, lv_color_hex(0x38BDF8), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_eye_l, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_emoji_eye_l, lv_color_hex(0x7DD3FC), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_eye_l, 2, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_eye_l, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_emoji_eye_r = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_eye_r, 30, 30);
+    lv_obj_set_pos(s_emoji_eye_r, 134, 42);
+    lv_obj_set_style_bg_color(s_emoji_eye_r, lv_color_hex(0x38BDF8), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_eye_r, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_emoji_eye_r, lv_color_hex(0x7DD3FC), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_eye_r, 2, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_eye_r, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 左右 腮红 (18x8) */
+    s_emoji_blush_l = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_blush_l, 18, 8);
+    lv_obj_set_pos(s_emoji_blush_l, 36, 76);
+    lv_obj_set_style_bg_color(s_emoji_blush_l, lv_color_hex(0xF472B6), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_emoji_blush_l, LV_OPA_60, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_blush_l, 4, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_blush_l, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_blush_l, LV_OBJ_FLAG_SCROLLABLE);
+
+    s_emoji_blush_r = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_blush_r, 18, 8);
+    lv_obj_set_pos(s_emoji_blush_r, 162, 76);
+    lv_obj_set_style_bg_color(s_emoji_blush_r, lv_color_hex(0xF472B6), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_emoji_blush_r, LV_OPA_60, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_blush_r, 4, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_blush_r, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_blush_r, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 萌趣小嘴 (24x8) */
+    s_emoji_mouth = lv_obj_create(card_face);
+    lv_obj_set_size(s_emoji_mouth, 24, 8);
+    lv_obj_set_pos(s_emoji_mouth, 96, 88);
+    lv_obj_set_style_bg_color(s_emoji_mouth, lv_color_hex(0xFB7185), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_emoji_mouth, 4, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_emoji_mouth, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_emoji_mouth, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 底部返回按钮 (216x40) */
+    btn_back = lv_obj_create(parent);
+    lv_obj_set_size(btn_back, 216, 40);
+    lv_obj_set_pos(btn_back, 12, 178);
+    lv_obj_set_style_bg_color(btn_back, lv_color_hex(0x9333EA), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(btn_back, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_color(btn_back, lv_color_hex(0xC084FC), LV_PART_MAIN);
+    lv_obj_set_style_border_width(btn_back, 1, LV_PART_MAIN);
+    lv_obj_set_style_radius(btn_back, 8, LV_PART_MAIN);
+    lv_obj_remove_flag(btn_back, LV_OBJ_FLAG_SCROLLABLE);
+
+    lbl_back = lv_label_create(btn_back);
+    lv_label_set_text(lbl_back, "BACK TO MENU (KEY3)");
+    lv_obj_set_style_text_color(lbl_back, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_center(lbl_back);
+
+    /* 底部提示 */
+    hint = lv_label_create(parent);
+    lv_label_set_text(hint, "K1: Mood  K2: Poke  K3: Exit");
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -4);
+
+    s_emoji_tick = 0;
+    return parent;
+}
+
+void ui_page_emoji_handle_key(uint8_t key_val)
+{
+    static const char * mode_names[5] = {
+        "MODE: AUTO", "MODE: HAPPY", "MODE: WINK", "MODE: SURPRISED", "MODE: SLEEPY"
+    };
+
+    if (key_val == 1)
+    {
+        /* KEY1: 切换心情模式 */
+        s_emoji_mode = (s_emoji_mode + 1) % 5;
+        s_emoji_tick = 0;
+        if (s_emoji_mood_label)
+        {
+            lv_label_set_text(s_emoji_mood_label, mode_names[s_emoji_mode]);
+        }
+    }
+    else if (key_val == 2)
+    {
+        /* KEY2: 触碰互动（立刻触发爱心放电眨眼） */
+        s_emoji_tick = 38;
+    }
+    else if (key_val == 3 || key_val == 4)
+    {
+        /* KEY3: 返回应用菜单 */
+        UI_Watch_SwitchPage(UI_PAGE_MENU);
+    }
+}
+
+void ui_page_emoji_update_100ms(void)
+{
+    uint16_t phase;
+
+    if (s_emoji_eye_l == NULL || s_emoji_eye_r == NULL) return;
+
+    s_emoji_tick++;
+
+    if (s_emoji_mode == 0)
+    {
+        /* AUTO 自动轮播动画 (循环周期 70 = 7秒) */
+        phase = s_emoji_tick % 70;
+    }
+    else if (s_emoji_mode == 1)
+    {
+        /* HAPPY 模式 */
+        phase = 55;
+    }
+    else if (s_emoji_mode == 2)
+    {
+        /* WINK 模式 */
+        phase = 42;
+    }
+    else if (s_emoji_mode == 3)
+    {
+        /* SURPRISED 惊讶模式 */
+        phase = 999;
+    }
+    else
+    {
+        /* SLEEPY 瞌睡模式 */
+        phase = 888;
+    }
+
+    if (phase < 20)
+    {
+        /* 1. 呆萌注视直视 (2秒) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 30);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 42);
+        lv_obj_set_size(s_emoji_eye_r, 30, 30);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 42);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 28);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 28);
+
+        lv_obj_set_size(s_emoji_mouth, 24, 8);
+        lv_obj_set_pos(s_emoji_mouth, 96, 88);
+        lv_obj_set_style_bg_opa(s_emoji_blush_l, LV_OPA_40, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(s_emoji_blush_r, LV_OPA_40, LV_PART_MAIN);
+    }
+    else if (phase < 23)
+    {
+        /* 2. 瞬间快速眨眼 (0.3秒) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 4);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 55);
+        lv_obj_set_size(s_emoji_eye_r, 30, 4);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 55);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 32);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 32);
+    }
+    else if (phase < 36)
+    {
+        /* 3. 俏皮向左看 (1.3秒) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 30);
+        lv_obj_set_pos(s_emoji_eye_l, 46, 42);
+        lv_obj_set_size(s_emoji_eye_r, 30, 30);
+        lv_obj_set_pos(s_emoji_eye_r, 128, 42);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 48, 26);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 130, 30);
+
+        lv_obj_set_size(s_emoji_mouth, 20, 8);
+        lv_obj_set_pos(s_emoji_mouth, 98, 88);
+    }
+    else if (phase < 38)
+    {
+        /* 眨眼过渡 */
+        lv_obj_set_size(s_emoji_eye_l, 30, 4);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 55);
+        lv_obj_set_size(s_emoji_eye_r, 30, 4);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 55);
+    }
+    else if (phase < 52)
+    {
+        /* 4. 单眼放电眨眼 Wink (1.4秒) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 4);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 55);
+        lv_obj_set_size(s_emoji_eye_r, 30, 30);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 42);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 32);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 24);
+
+        lv_obj_set_size(s_emoji_mouth, 28, 12);
+        lv_obj_set_pos(s_emoji_mouth, 94, 86);
+        lv_obj_set_style_bg_opa(s_emoji_blush_l, LV_OPA_100, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(s_emoji_blush_r, LV_OPA_100, LV_PART_MAIN);
+    }
+    else if (phase < 70)
+    {
+        /* 5. 极度开心眯眼微笑 (^ v ^) (1.8秒) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 10);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 52);
+        lv_obj_set_size(s_emoji_eye_r, 30, 10);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 52);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 24);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 24);
+
+        lv_obj_set_size(s_emoji_mouth, 32, 16);
+        lv_obj_set_pos(s_emoji_mouth, 92, 84);
+        lv_obj_set_style_bg_color(s_emoji_mouth, lv_color_hex(0xF43F5E), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(s_emoji_blush_l, LV_OPA_80, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(s_emoji_blush_r, LV_OPA_80, LV_PART_MAIN);
+    }
+    else if (phase == 999)
+    {
+        /* 惊讶模式 (O _ O) */
+        lv_obj_set_size(s_emoji_eye_l, 34, 34);
+        lv_obj_set_pos(s_emoji_eye_l, 50, 40);
+        lv_obj_set_size(s_emoji_eye_r, 34, 34);
+        lv_obj_set_pos(s_emoji_eye_r, 132, 40);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 20);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 20);
+
+        lv_obj_set_size(s_emoji_mouth, 18, 18);
+        lv_obj_set_pos(s_emoji_mouth, 99, 86);
+        lv_obj_set_style_radius(s_emoji_mouth, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    }
+    else if (phase == 888)
+    {
+        /* 瞌睡模式 (- _ -) */
+        lv_obj_set_size(s_emoji_eye_l, 30, 6);
+        lv_obj_set_pos(s_emoji_eye_l, 52, 54);
+        lv_obj_set_size(s_emoji_eye_r, 30, 6);
+        lv_obj_set_pos(s_emoji_eye_r, 134, 54);
+
+        lv_obj_set_pos(s_emoji_eyebrow_l, 54, 34);
+        lv_obj_set_pos(s_emoji_eyebrow_r, 136, 34);
+
+        lv_obj_set_size(s_emoji_mouth, 16, 6);
+        lv_obj_set_pos(s_emoji_mouth, 100, 92);
+    }
+}
+
+
+/* ============================================================================
+   7. 通用占位页 (GAME)
    ============================================================================ */
 lv_obj_t * ui_page_placeholder_create(lv_obj_t * parent, const char * title, const char * desc)
 {

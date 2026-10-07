@@ -15,8 +15,7 @@
 #define LED1_OFF 	    GPIO_SetBits(LED1_PORT, LED1_PIN)			// 高电平熄灭 LED1	
 #define LED1_Toggle	    GPIO_ToggleBits(LED1_PORT, LED1_PIN)		// LED1 状态翻转
 
-#define LED_Toggle()    GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // 兼容带括号调用
-#define LED_Toggle      GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // 兼容无括号调用
+#define LED_Toggle      GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // 兼容 LED_Toggle() 和 LED_Toggle 调用
 
 /*---------------------- 函数声明 ----------------------------*/
 

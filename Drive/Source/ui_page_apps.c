@@ -10,6 +10,7 @@
 #include "aht20.h"
 #include "mpu6050.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 /* ============================================================================
@@ -1166,68 +1167,374 @@ void ui_page_emoji_update_100ms(void)
 
 
 /* ============================================================================
-   7. 通用占位页 (GAME)
+   7. 小恐龙跑酷游戏 (CHROME DINO RUN GAME - 33 FPS 实时物理引擎)
    ============================================================================ */
-lv_obj_t * ui_page_placeholder_create(lv_obj_t * parent, const char * title, const char * desc)
+static lv_obj_t * s_dino_score_lbl = NULL;
+static lv_obj_t * s_dino_cloud1 = NULL;
+static lv_obj_t * s_dino_cloud2 = NULL;
+static lv_obj_t * s_dino_ground_line = NULL;
+static lv_obj_t * s_dino_player = NULL;
+static lv_obj_t * s_dino_leg_l = NULL;
+static lv_obj_t * s_dino_leg_r = NULL;
+static lv_obj_t * s_dino_eye = NULL;
+static lv_obj_t * s_dino_cactus = NULL;
+static lv_obj_t * s_dino_over_card = NULL;
+static lv_obj_t * s_dino_over_score_lbl = NULL;
+
+static lv_timer_t * s_dino_timer = NULL;
+
+static uint8_t  s_dino_game_over = 0;
+static uint32_t s_dino_score = 0;
+static uint32_t s_dino_hiscore = 0;
+static float    s_dino_y = 144.0f;
+static float    s_dino_vy = 0.0f;
+static float    s_cactus_x = 240.0f;
+static float    s_cactus_speed = 5.0f;
+static uint8_t  s_cactus_w = 14;
+static float    s_cloud1_x = 180.0f;
+static float    s_cloud2_x = 70.0f;
+static uint8_t  s_leg_phase = 0;
+
+static void dino_game_restart(void)
+{
+    s_dino_game_over = 0;
+    s_dino_score = 0;
+    s_dino_y = 144.0f;
+    s_dino_vy = 0.0f;
+    s_cactus_x = 240.0f + (rand() % 40);
+    s_cactus_speed = 5.0f;
+    s_cactus_w = 14;
+    s_leg_phase = 0;
+
+    if (s_dino_player)
+    {
+        lv_obj_set_pos(s_dino_player, 24, 144);
+        lv_obj_set_style_bg_color(s_dino_player, lv_color_hex(0x22C55E), LV_PART_MAIN);
+    }
+    if (s_dino_eye)
+    {
+        lv_obj_set_style_bg_color(s_dino_eye, lv_color_hex(0x0F172A), LV_PART_MAIN);
+    }
+    if (s_dino_cactus)
+    {
+        lv_obj_set_size(s_dino_cactus, s_cactus_w, 30);
+        lv_obj_set_pos(s_dino_cactus, (int)s_cactus_x, 146);
+    }
+    if (s_dino_over_card)
+    {
+        lv_obj_add_flag(s_dino_over_card, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void dino_game_loop(lv_timer_t * timer)
+{
+    char buf[36];
+    (void)timer;
+
+    if (s_dino_player == NULL) return;
+
+    /* 1. 轻云慢速漂移 (0.5 px/帧) */
+    s_cloud1_x -= 0.6f;
+    if (s_cloud1_x < -30.0f) s_cloud1_x = 245.0f;
+    if (s_dino_cloud1) lv_obj_set_pos(s_dino_cloud1, (int)s_cloud1_x, 38);
+
+    s_cloud2_x -= 0.4f;
+    if (s_cloud2_x < -30.0f) s_cloud2_x = 250.0f;
+    if (s_dino_cloud2) lv_obj_set_pos(s_dino_cloud2, (int)s_cloud2_x, 56);
+
+    /* 2. 阵亡后冻结物理引擎 */
+    if (s_dino_game_over) return;
+
+    /* 3. 分数自增与速度曲线 */
+    s_dino_score++;
+    if (s_dino_score > s_dino_hiscore)
+    {
+        s_dino_hiscore = s_dino_score;
+    }
+    /* 速度从 5.0 渐增至 9.0 */
+    s_cactus_speed = 5.0f + (float)(s_dino_score / 120) * 0.4f;
+    if (s_cactus_speed > 9.0f) s_cactus_speed = 9.0f;
+
+    /* 4. 障碍物飞驰与循环生成 */
+    s_cactus_x -= s_cactus_speed;
+    if (s_cactus_x < -28.0f)
+    {
+        s_cactus_x = 240.0f + (rand() % 40);
+        s_cactus_w = (rand() % 2 == 0) ? 14 : 22;
+        if (s_dino_cactus)
+        {
+            lv_obj_set_size(s_dino_cactus, s_cactus_w, 30);
+        }
+    }
+    if (s_dino_cactus)
+    {
+        lv_obj_set_pos(s_dino_cactus, (int)s_cactus_x, 146);
+    }
+
+    /* 5. 恐龙重力抛物线积分 */
+    s_dino_y += s_dino_vy;
+    s_dino_vy += 1.15f; /* 重力加速度 g */
+    if (s_dino_y >= 144.0f)
+    {
+        s_dino_y = 144.0f;
+        s_dino_vy = 0.0f;
+    }
+    lv_obj_set_pos(s_dino_player, 24, (int)s_dino_y);
+
+    /* 6. 踏步步态与悬空动作 */
+    s_leg_phase++;
+    if (s_dino_y < 144.0f)
+    {
+        /* 滞空：双脚向上收起 */
+        if (s_dino_leg_l) lv_obj_set_pos(s_dino_leg_l, 4, 23);
+        if (s_dino_leg_r) lv_obj_set_pos(s_dino_leg_r, 14, 23);
+    }
+    else
+    {
+        /* 地面小碎步踏步 */
+        if ((s_leg_phase % 4) < 2)
+        {
+            if (s_dino_leg_l) lv_obj_set_pos(s_dino_leg_l, 4, 25);
+            if (s_dino_leg_r) lv_obj_set_pos(s_dino_leg_r, 14, 21);
+        }
+        else
+        {
+            if (s_dino_leg_l) lv_obj_set_pos(s_dino_leg_l, 4, 21);
+            if (s_dino_leg_r) lv_obj_set_pos(s_dino_leg_r, 14, 25);
+        }
+    }
+
+    /* 7. AABB 碰撞检测 (小恐龙与仙人掌重叠判断) */
+    /* 恐龙 X 范围 [28, 48], 仙人掌 X 范围 [s_cactus_x+2, s_cactus_x+s_cactus_w-2] */
+    if ((s_cactus_x + 2 < 48.0f) && ((s_cactus_x + s_cactus_w - 2) > 28.0f))
+    {
+        if ((s_dino_y + 26.0f) > 150.0f)
+        {
+            /* 发生碰撞！GAME OVER */
+            s_dino_game_over = 1;
+            lv_obj_set_style_bg_color(s_dino_player, lv_color_hex(0xEF4444), LV_PART_MAIN);
+            if (s_dino_eye)
+            {
+                lv_obj_set_style_bg_color(s_dino_eye, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+            }
+
+            if (s_dino_over_card)
+            {
+                lv_obj_remove_flag(s_dino_over_card, LV_OBJ_FLAG_HIDDEN);
+                if (s_dino_over_score_lbl)
+                {
+                    snprintf(buf, sizeof(buf), "SCORE: %05u", (unsigned int)s_dino_score);
+                    lv_label_set_text(s_dino_over_score_lbl, buf);
+                }
+            }
+        }
+    }
+
+    /* 8. 刷新顶部记分牌 */
+    if (s_dino_score_lbl)
+    {
+        snprintf(buf, sizeof(buf), "HI %05u  %05u", (unsigned int)s_dino_hiscore, (unsigned int)s_dino_score);
+        lv_label_set_text(s_dino_score_lbl, buf);
+    }
+}
+
+void ui_page_dino_cleanup(void)
+{
+    if (s_dino_timer != NULL)
+    {
+        lv_timer_del(s_dino_timer);
+        s_dino_timer = NULL;
+    }
+    s_dino_score_lbl = NULL;
+    s_dino_cloud1 = NULL;
+    s_dino_cloud2 = NULL;
+    s_dino_ground_line = NULL;
+    s_dino_player = NULL;
+    s_dino_leg_l = NULL;
+    s_dino_leg_r = NULL;
+    s_dino_eye = NULL;
+    s_dino_cactus = NULL;
+    s_dino_over_card = NULL;
+    s_dino_over_score_lbl = NULL;
+}
+
+lv_obj_t * ui_page_dino_create(lv_obj_t * parent)
 {
     lv_obj_t * top_bar;
-    lv_obj_t * label_title;
-    lv_obj_t * center_card;
-    lv_obj_t * lbl_desc;
-    lv_obj_t * btn_back;
-    lv_obj_t * lbl_back;
+    lv_obj_t * title_lbl;
+    lv_obj_t * dino_head;
+    lv_obj_t * hint;
+    lv_obj_t * over_title;
+    lv_obj_t * over_hint;
 
+    /* 1. 顶部状态栏 (216x22) */
     top_bar = lv_obj_create(parent);
-    lv_obj_set_size(top_bar, 216, 24);
+    lv_obj_set_size(top_bar, 216, 22);
     lv_obj_set_pos(top_bar, 12, 10);
     lv_obj_set_style_bg_opa(top_bar, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(top_bar, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(top_bar, 0, LV_PART_MAIN);
     lv_obj_remove_flag(top_bar, LV_OBJ_FLAG_SCROLLABLE);
 
-    label_title = lv_label_create(top_bar);
-    lv_label_set_text(label_title, title);
-    lv_obj_set_style_text_color(label_title, lv_color_hex(0xEC4899), LV_PART_MAIN);
-    lv_obj_align(label_title, LV_ALIGN_LEFT_MID, 0, 0);
+    title_lbl = lv_label_create(top_bar);
+    lv_label_set_text(title_lbl, "DINO RUN");
+    lv_obj_set_style_text_color(title_lbl, lv_color_hex(0xFACC15), LV_PART_MAIN);
+    lv_obj_align(title_lbl, LV_ALIGN_LEFT_MID, 0, 0);
 
-    center_card = lv_obj_create(parent);
-    lv_obj_set_size(center_card, 216, 118);
-    lv_obj_set_pos(center_card, 12, 40);
-    lv_obj_set_style_bg_color(center_card, lv_color_hex(0x111827), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(center_card, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(center_card, lv_color_hex(0x1F2937), LV_PART_MAIN);
-    lv_obj_set_style_border_width(center_card, 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(center_card, 12, LV_PART_MAIN);
-    lv_obj_remove_flag(center_card, LV_OBJ_FLAG_SCROLLABLE);
+    s_dino_score_lbl = lv_label_create(top_bar);
+    lv_label_set_text(s_dino_score_lbl, "HI 00000  00000");
+    lv_obj_set_style_text_color(s_dino_score_lbl, lv_color_hex(0x22C55E), LV_PART_MAIN);
+    lv_obj_align(s_dino_score_lbl, LV_ALIGN_RIGHT_MID, 0, 0);
 
-    lbl_desc = lv_label_create(center_card);
-    lv_label_set_text(lbl_desc, desc);
-    lv_obj_set_style_text_color(lbl_desc, lv_color_hex(0xCBD5E1), LV_PART_MAIN);
-    lv_obj_center(lbl_desc);
+    /* 2. 浮动白云 */
+    s_dino_cloud1 = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_cloud1, 26, 10);
+    lv_obj_set_pos(s_dino_cloud1, (int)s_cloud1_x, 38);
+    lv_obj_set_style_bg_color(s_dino_cloud1, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_dino_cloud1, LV_OPA_60, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_cloud1, 5, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_cloud1, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_cloud1, LV_OBJ_FLAG_SCROLLABLE);
 
-    btn_back = lv_obj_create(parent);
-    lv_obj_set_size(btn_back, 216, 42);
-    lv_obj_set_pos(btn_back, 12, 172);
-    lv_obj_set_style_bg_color(btn_back, lv_color_hex(0x0284C7), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(btn_back, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_color(btn_back, lv_color_hex(0x38BDF8), LV_PART_MAIN);
-    lv_obj_set_style_border_width(btn_back, 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(btn_back, 8, LV_PART_MAIN);
-    lv_obj_remove_flag(btn_back, LV_OBJ_FLAG_SCROLLABLE);
+    s_dino_cloud2 = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_cloud2, 20, 8);
+    lv_obj_set_pos(s_dino_cloud2, (int)s_cloud2_x, 56);
+    lv_obj_set_style_bg_color(s_dino_cloud2, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_dino_cloud2, LV_OPA_50, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_cloud2, 4, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_cloud2, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_cloud2, LV_OBJ_FLAG_SCROLLABLE);
 
-    lbl_back = lv_label_create(btn_back);
-    lv_label_set_text(lbl_back, "BACK TO MENU (KEY3)");
-    lv_obj_set_style_text_color(lbl_back, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_center(lbl_back);
+    /* 3. 跑道地面线 (240x2, y=176) */
+    s_dino_ground_line = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_ground_line, 240, 2);
+    lv_obj_set_pos(s_dino_ground_line, 0, 176);
+    lv_obj_set_style_bg_color(s_dino_ground_line, lv_color_hex(0x475569), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_ground_line, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_ground_line, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 4. 小恐龙 (Dino 宽26, 高30) */
+    s_dino_player = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_player, 26, 30);
+    lv_obj_set_pos(s_dino_player, 24, 144);
+    lv_obj_set_style_bg_color(s_dino_player, lv_color_hex(0x22C55E), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_dino_player, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_player, 6, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_player, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_dino_player, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_player, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 恐龙头部大嘴 */
+    dino_head = lv_obj_create(s_dino_player);
+    lv_obj_set_size(dino_head, 15, 12);
+    lv_obj_set_pos(dino_head, 10, 0);
+    lv_obj_set_style_bg_color(dino_head, lv_color_hex(0x22C55E), LV_PART_MAIN);
+    lv_obj_set_style_radius(dino_head, 3, LV_PART_MAIN);
+    lv_obj_set_style_border_width(dino_head, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(dino_head, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 恐龙呆萌小眼 */
+    s_dino_eye = lv_obj_create(s_dino_player);
+    lv_obj_set_size(s_dino_eye, 3, 3);
+    lv_obj_set_pos(s_dino_eye, 14, 3);
+    lv_obj_set_style_bg_color(s_dino_eye, lv_color_hex(0x0F172A), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_eye, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_eye, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_eye, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 恐龙左脚 */
+    s_dino_leg_l = lv_obj_create(s_dino_player);
+    lv_obj_set_size(s_dino_leg_l, 4, 7);
+    lv_obj_set_pos(s_dino_leg_l, 4, 23);
+    lv_obj_set_style_bg_color(s_dino_leg_l, lv_color_hex(0x16A34A), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_leg_l, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_leg_l, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_leg_l, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 恐龙右脚 */
+    s_dino_leg_r = lv_obj_create(s_dino_player);
+    lv_obj_set_size(s_dino_leg_r, 4, 7);
+    lv_obj_set_pos(s_dino_leg_r, 14, 23);
+    lv_obj_set_style_bg_color(s_dino_leg_r, lv_color_hex(0x16A34A), LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_leg_r, 2, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_leg_r, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_leg_r, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 5. 障碍物仙人掌 (鲜红醒目 0xEF4444) */
+    s_dino_cactus = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_cactus, s_cactus_w, 30);
+    lv_obj_set_pos(s_dino_cactus, (int)s_cactus_x, 146);
+    lv_obj_set_style_bg_color(s_dino_cactus, lv_color_hex(0xEF4444), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_dino_cactus, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_cactus, 4, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_cactus, 0, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_cactus, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* 6. 底部操作栏提示 */
+    hint = lv_label_create(parent);
+    lv_label_set_text(hint, "K1/K2: Jump   K3: Exit");
+    lv_obj_set_style_text_color(hint, lv_color_hex(0x64748B), LV_PART_MAIN);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -8);
+
+    /* 7. GAME OVER 结算浮动面板 (平时隐藏) */
+    s_dino_over_card = lv_obj_create(parent);
+    lv_obj_set_size(s_dino_over_card, 200, 100);
+    lv_obj_set_pos(s_dino_over_card, 20, 60);
+    lv_obj_set_style_bg_color(s_dino_over_card, lv_color_hex(0x181024), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_dino_over_card, LV_OPA_90, LV_PART_MAIN);
+    lv_obj_set_style_border_color(s_dino_over_card, lv_color_hex(0xF43F5E), LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_dino_over_card, 2, LV_PART_MAIN);
+    lv_obj_set_style_radius(s_dino_over_card, 12, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(s_dino_over_card, 6, LV_PART_MAIN);
+    lv_obj_remove_flag(s_dino_over_card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(s_dino_over_card, LV_OBJ_FLAG_HIDDEN);
+
+    over_title = lv_label_create(s_dino_over_card);
+    lv_label_set_text(over_title, "GAME OVER");
+    lv_obj_set_style_text_color(over_title, lv_color_hex(0xEF4444), LV_PART_MAIN);
+    lv_obj_align(over_title, LV_ALIGN_TOP_MID, 0, 4);
+
+    s_dino_over_score_lbl = lv_label_create(s_dino_over_card);
+    lv_label_set_text(s_dino_over_score_lbl, "SCORE: 00000");
+    lv_obj_set_style_text_color(s_dino_over_score_lbl, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_align(s_dino_over_score_lbl, LV_ALIGN_CENTER, 0, 0);
+
+    over_hint = lv_label_create(s_dino_over_card);
+    lv_label_set_text(over_hint, "K1/K2: Replay   K3: Exit");
+    lv_obj_set_style_text_color(over_hint, lv_color_hex(0x94A3B8), LV_PART_MAIN);
+    lv_obj_align(over_hint, LV_ALIGN_BOTTOM_MID, 0, -4);
+
+    /* 启动 33 FPS 实时游戏物理定时器 (30ms 周期) */
+    dino_game_restart();
+    s_dino_timer = lv_timer_create(dino_game_loop, 30, NULL);
 
     return parent;
 }
 
-void ui_page_placeholder_handle_key(uint8_t key_val)
+void ui_page_dino_handle_key(uint8_t key_val)
 {
-    if (key_val == 3 || key_val == 4)
+    if (key_val == 1 || key_val == 2)
     {
-        /* 返回主菜单 */
+        /* KEY1 或 KEY2：跳跃控制 */
+        if (s_dino_game_over)
+        {
+            /* 死亡后一键复活开局 */
+            dino_game_restart();
+        }
+        else
+        {
+            /* 处于地面时立即起跳 (真实初速度 -11.0f) */
+            if (s_dino_y >= 143.0f)
+            {
+                s_dino_vy = -11.0f;
+            }
+        }
+    }
+    else if (key_val == 3 || key_val == 4)
+    {
+        /* KEY3：退出小恐龙，返回 8 应用主菜单 */
+        ui_page_dino_cleanup();
         UI_Watch_SwitchPage(UI_PAGE_MENU);
     }
 }
+

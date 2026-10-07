@@ -42,6 +42,9 @@ void UI_Watch_SwitchPage(ui_page_id_t target_page)
     }
 
     /* 销毁旧页面容器，释放所有旧控件内存 */
+    /* 离开前清理小恐龙定时器，防止悬空内存泄漏 */
+    ui_page_dino_cleanup();
+
     if (s_page_container != NULL)
     {
         lv_obj_delete(s_page_container);
@@ -94,7 +97,7 @@ void UI_Watch_SwitchPage(ui_page_id_t target_page)
             break;
 
         case UI_PAGE_GAME:
-            ui_page_placeholder_create(s_page_container, "DINO GAME", "Wait for FreeRTOS Task");
+            ui_page_dino_create(s_page_container);
             break;
 
         case UI_PAGE_EMOJI:
@@ -157,7 +160,7 @@ void UI_Watch_HandleKey(uint8_t key_val)
             break;
 
         case UI_PAGE_GAME:
-            ui_page_placeholder_handle_key(key_val);
+            ui_page_dino_handle_key(key_val);
             break;
 
         default:

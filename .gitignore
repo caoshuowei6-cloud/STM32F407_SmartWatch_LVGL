@@ -14,6 +14,7 @@ Project/DebugConfig/
 *.map
 *.hex
 *.bin
+*.log
 
 # Keil 用户界面布局/临时状态文件（与个人窗口排版有关，不提交）
 *.uvguix.*

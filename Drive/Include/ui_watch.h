@@ -81,8 +81,9 @@ lv_obj_t * ui_page_emoji_create(lv_obj_t * parent);
 void ui_page_emoji_handle_key(uint8_t key_val);
 void ui_page_emoji_update_100ms(void);
 
-/* 10. 占位页面 (GAME) */
-lv_obj_t * ui_page_placeholder_create(lv_obj_t * parent, const char * title, const char * desc);
-void ui_page_placeholder_handle_key(uint8_t key_val);
+/* 10. 小恐龙跑酷游戏 (CHROME DINO RUN) */
+lv_obj_t * ui_page_dino_create(lv_obj_t * parent);
+void ui_page_dino_handle_key(uint8_t key_val);
+void ui_page_dino_cleanup(void);
 
 #endif /* __UI_WATCH_H */

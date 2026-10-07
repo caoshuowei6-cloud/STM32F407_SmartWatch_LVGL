@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    param_storage.c
   * @brief   智能手表两级非易失性参数持久化存储实现（RTC备份域 + 内部Flash双保险）
-  *          支持掉电步数保持、次日自动清零、用户配置持久化存储
+  *          支持掉电步数保持、即时防丢固化、用户配置持久化存储
   ******************************************************************************
   */
 
@@ -19,8 +19,10 @@
 #include <string.h>
 
 static sys_params_t s_params;
-static uint32_t s_last_commit_tick = 0;
 static uint32_t s_last_saved_steps = 0;
+static uint32_t s_last_flash_steps = 0;
+static uint32_t s_last_step_change_tick = 0;
+static bool     s_need_flash_save = false;
 
 static uint32_t Calc_Checksum(const sys_params_t * p)
 {
@@ -37,62 +39,40 @@ static uint32_t Calc_Checksum(const sys_params_t * p)
 }
 
 /* ----------------------------------------------------------------------------
-   1. RTC 备份域高速读写 (0 磨损，单周期访问，由备用电源/电容维系)
+   1. RTC 备份域高速读写 (避开 rtc_f407 使用的 DR0 和 DR1，使用 DR2 ~ DR7)
    ---------------------------------------------------------------------------- */
 static void Save_To_RTC_BKP(const sys_params_t * p)
 {
+    const uint32_t * w = (const uint32_t *)p;
     PWR_BackupAccessCmd(ENABLE);
-    RTC_WriteBackupRegister(RTC_BKP_DR1, p->magic);
-    RTC_WriteBackupRegister(RTC_BKP_DR2, p->step_count);
-    RTC_WriteBackupRegister(RTC_BKP_DR3, ((uint32_t)p->auto_sleep_sec << 16) |
-                                         ((uint32_t)p->wrist_wake_en  << 8)  |
-                                         (uint32_t)p->auto_sleep_en);
-    RTC_WriteBackupRegister(RTC_BKP_DR4, ((uint32_t)p->last_year  << 24) |
-                                         ((uint32_t)p->last_month << 16) |
-                                         ((uint32_t)p->last_date  << 8)  |
-                                         (uint32_t)p->alarm_en);
-    RTC_WriteBackupRegister(RTC_BKP_DR5, ((uint32_t)p->alarm_hour << 8) |
-                                         (uint32_t)p->alarm_min);
-    RTC_WriteBackupRegister(RTC_BKP_DR6, p->checksum);
+    RTC_WriteBackupRegister(RTC_BKP_DR2, w[0]); /* magic */
+    RTC_WriteBackupRegister(RTC_BKP_DR3, w[1]); /* step_count */
+    RTC_WriteBackupRegister(RTC_BKP_DR4, w[2]); /* auto_sleep & wrist_wake */
+    RTC_WriteBackupRegister(RTC_BKP_DR5, w[3]); /* date & alarm_en */
+    RTC_WriteBackupRegister(RTC_BKP_DR6, w[4]); /* alarm time */
+    RTC_WriteBackupRegister(RTC_BKP_DR7, w[5]); /* checksum */
 }
 
 static bool Read_From_RTC_BKP(sys_params_t * p)
 {
-    uint32_t dr1 = RTC_ReadBackupRegister(RTC_BKP_DR1);
-    uint32_t dr2, dr3, dr4, dr5, dr6;
-
-    if (dr1 != PARAM_MAGIC_NUMBER)
+    uint32_t * w = (uint32_t *)p;
+    w[0] = RTC_ReadBackupRegister(RTC_BKP_DR2);
+    if (w[0] != PARAM_MAGIC_NUMBER)
     {
         return false;
     }
 
-    dr2 = RTC_ReadBackupRegister(RTC_BKP_DR2);
-    dr3 = RTC_ReadBackupRegister(RTC_BKP_DR3);
-    dr4 = RTC_ReadBackupRegister(RTC_BKP_DR4);
-    dr5 = RTC_ReadBackupRegister(RTC_BKP_DR5);
-    dr6 = RTC_ReadBackupRegister(RTC_BKP_DR6);
+    w[1] = RTC_ReadBackupRegister(RTC_BKP_DR3);
+    w[2] = RTC_ReadBackupRegister(RTC_BKP_DR4);
+    w[3] = RTC_ReadBackupRegister(RTC_BKP_DR5);
+    w[4] = RTC_ReadBackupRegister(RTC_BKP_DR6);
+    w[5] = RTC_ReadBackupRegister(RTC_BKP_DR7);
 
-    p->magic          = dr1;
-    p->step_count     = dr2;
-    p->auto_sleep_sec = (uint16_t)(dr3 >> 16);
-    p->wrist_wake_en  = (uint8_t)(dr3 >> 8);
-    p->auto_sleep_en  = (uint8_t)(dr3 & 0xFF);
-
-    p->last_year      = (uint8_t)(dr4 >> 24);
-    p->last_month     = (uint8_t)(dr4 >> 16);
-    p->last_date      = (uint8_t)(dr4 >> 8);
-    p->alarm_en       = (uint8_t)(dr4 & 0xFF);
-
-    p->alarm_hour     = (uint8_t)(dr5 >> 8);
-    p->alarm_min      = (uint8_t)(dr5 & 0xFF);
-    p->reserved       = 0;
-    p->checksum       = dr6;
-
-    return (Calc_Checksum(p) == dr6);
+    return (Calc_Checksum(p) == w[5]);
 }
 
 /* ----------------------------------------------------------------------------
-   2. STM32 内部 Flash 扇区 11 持久化存储 (永久不丢失)
+   2. STM32 内部 Flash 扇区 11 持久化存储 (非易失性永久备份)
    ---------------------------------------------------------------------------- */
 static bool Save_To_Flash(const sys_params_t * p)
 {
@@ -101,35 +81,45 @@ static bool Save_To_Flash(const sys_params_t * p)
     FLASH_Status status;
     uint32_t i;
 
-    taskENTER_CRITICAL();
+    /* 解锁 Flash 控制器 */
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
                     FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 
+    /* 擦除 Sector 11 (0x080E0000) */
     status = FLASH_EraseSector(FLASH_Sector_11, VoltageRange_3);
     if (status != FLASH_COMPLETE)
     {
         FLASH_Lock();
-        taskEXIT_CRITICAL();
-        printf("[ParamStorage] Flash Erase Sector 11 Failed (%d)!\r\n", status);
+        printf("[ParamStorage] Flash Erase Sector 11 Error (%d)!\r\n", status);
         return false;
     }
 
+    /* 写入 6 个 32位 字 (24字节) */
     for (i = 0; i < word_count; i++)
     {
         status = FLASH_ProgramWord(FLASH_PARAM_SECTOR_ADDR + (i * 4), words[i]);
         if (status != FLASH_COMPLETE)
         {
             FLASH_Lock();
-            taskEXIT_CRITICAL();
-            printf("[ParamStorage] Flash Program Word %u Failed (%d)!\r\n", (unsigned int)i, status);
+            printf("[ParamStorage] Flash Program Word %u Error (%d)!\r\n", (unsigned int)i, status);
             return false;
         }
     }
 
     FLASH_Lock();
-    taskEXIT_CRITICAL();
-    return true;
+
+    /* 读出回显校验 */
+    const sys_params_t * check_p = (const sys_params_t *)FLASH_PARAM_SECTOR_ADDR;
+    if (check_p->magic == PARAM_MAGIC_NUMBER && check_p->step_count == p->step_count)
+    {
+        printf("[ParamStorage] >>> Persisted Steps: %u to Flash Sector 11! <<<\r\n",
+               (unsigned int)p->step_count);
+        return true;
+    }
+
+    printf("[ParamStorage] Flash Verification Failed!\r\n");
+    return false;
 }
 
 static bool Read_From_Flash(sys_params_t * p)
@@ -156,25 +146,26 @@ static bool Read_From_Flash(sys_params_t * p)
 void Param_Storage_Init(void)
 {
     bool loaded = false;
-    uint8_t y = 0, m = 0, d = 0, wd = 0;
 
-    /* 优先从 RTC 备份域恢复 */
-    if (Read_From_RTC_BKP(&s_params))
+    /* 1. 优先尝试从 Flash 扇区 11 读取 (即使断开所有电源拔下 USB，Flash 也永久留存) */
+    if (Read_From_Flash(&s_params))
     {
         loaded = true;
-        printf("[ParamStorage] Restored parameters from RTC Backup Domain.\r\n");
+        printf("[ParamStorage] Loaded Parameters from Flash Sector 11 (Steps: %u).\r\n",
+               (unsigned int)s_params.step_count);
     }
-    /* 其次从 Flash 扇区恢复 */
-    else if (Read_From_Flash(&s_params))
+    /* 2. 其次尝试从 RTC 备份域读取 (有纽扣电池时维持) */
+    else if (Read_From_RTC_BKP(&s_params))
     {
         loaded = true;
-        printf("[ParamStorage] Restored parameters from Flash Sector 11.\r\n");
+        printf("[ParamStorage] Loaded Parameters from RTC Backup Domain (Steps: %u).\r\n",
+               (unsigned int)s_params.step_count);
     }
 
-    /* 若皆为空或损坏，进行出厂默认初始化 */
+    /* 3. 若首次烧录尚未保存过任何数据，初始化默认值并固化 */
     if (!loaded)
     {
-        printf("[ParamStorage] First Boot or Corrupted Data. Initializing Defaults...\r\n");
+        printf("[ParamStorage] First Boot. Initializing Default Settings...\r\n");
         s_params.magic          = PARAM_MAGIC_NUMBER;
         s_params.step_count     = 0;
         s_params.auto_sleep_sec = 15;
@@ -192,36 +183,25 @@ void Param_Storage_Init(void)
         Param_Storage_Commit();
     }
 
-    /* 4. 跨日检测：若当前日期与记录日期不同，当天步数自动归零 */
-    RTC_F407_GetDate(&y, &m, &d, &wd);
-    if (d != 0 && s_params.last_date != 0 && s_params.last_date != d)
-    {
-        printf("[ParamStorage] New Day Detected! Yesterday Steps: %u -> Reset Today to 0.\r\n",
-               (unsigned int)s_params.step_count);
-        s_params.step_count = 0;
-        s_params.last_year  = y;
-        s_params.last_month = m;
-        s_params.last_date  = d;
-        Param_Storage_Commit();
-    }
-    else
-    {
-        /* 恢复步数至 MPU6050 计步引擎 */
-        MPU6050_SetStepCount(s_params.step_count);
-    }
+    /* 4. 彻底恢复步数至 MPU6050 计步引擎 (开机绝对不误清零) */
+    MPU6050_SetStepCount(s_params.step_count);
 
-    /* 恢复电源管理器设置 */
+    /* 5. 恢复电源管理器设置 */
     Power_Manager_SetTimeout(s_params.auto_sleep_sec);
     Power_Manager_SetWristWake(s_params.wrist_wake_en ? true : false);
     Power_Manager_SetAutoSleep(s_params.auto_sleep_en ? true : false);
 
     s_last_saved_steps = s_params.step_count;
-    s_last_commit_tick = xTaskGetTickCount();
+    s_last_flash_steps = s_params.step_count;
+    s_need_flash_save  = false;
 
-    printf("[ParamStorage] Active Params: Steps=%u, AutoSleep=%us, WristWake=%s\r\n",
-           (unsigned int)s_params.step_count,
+    printf("\r\n=======================================================\r\n");
+    printf(" [ParamStorage] State Restored Successfully!           \r\n");
+    printf(" Current Steps : %u steps (Persistent across reboot)   \r\n", (unsigned int)s_params.step_count);
+    printf(" Auto-Sleep    : %u s | Wrist-Wake: %s                 \r\n",
            (unsigned int)s_params.auto_sleep_sec,
-           s_params.wrist_wake_en ? "ON" : "OFF");
+           s_params.wrist_wake_en ? "ENABLED" : "DISABLED");
+    printf("=======================================================\r\n\r\n");
 }
 
 sys_params_t * Param_Storage_GetParams(void)
@@ -240,7 +220,8 @@ bool Param_Storage_Commit(void)
     Save_To_Flash(&s_params);
 
     s_last_saved_steps = s_params.step_count;
-    s_last_commit_tick = xTaskGetTickCount();
+    s_last_flash_steps = s_params.step_count;
+    s_need_flash_save  = false;
     return true;
 }
 
@@ -256,17 +237,28 @@ void Param_Storage_Sync(void)
 
     s_params.step_count = curr_steps;
 
-    /* 步数有变化时，高频在 RTC 备份域中维持 (0 Flash 磨损) */
+    /* 1. 步数变化时：在 RTC 备份域中维持 (0 Flash 磨损) */
     if (curr_steps != s_last_saved_steps)
     {
+        s_params.checksum = Calc_Checksum(&s_params);
         PWR_BackupAccessCmd(ENABLE);
-        RTC_WriteBackupRegister(RTC_BKP_DR2, curr_steps);
+        RTC_WriteBackupRegister(RTC_BKP_DR3, curr_steps);
+        RTC_WriteBackupRegister(RTC_BKP_DR7, s_params.checksum);
         s_last_saved_steps = curr_steps;
+        s_last_step_change_tick = now;
+        s_need_flash_save = true;
     }
 
-    /* 步数每累积增加 20 步，或每 5 分钟 (300s)，写入一次 Flash 扇区持久化 */
-    if ((now - s_last_commit_tick) >= pdMS_TO_TICKS(300000))
+    /* 2. 及时固化至 Flash 扇区 11：
+       - 当步数增加达到 3 步以上；
+       - 或者走完一段路、停下来超过 1.5 秒未发生新步数时，
+       立即触发 Flash 固化！保证即便此时拔电拔线，步数也已写入内部 Flash！ */
+    if (s_need_flash_save)
     {
-        Param_Storage_Commit();
+        if ((curr_steps >= s_last_flash_steps + 3) ||
+            ((now - s_last_step_change_tick) >= pdMS_TO_TICKS(1500)))
+        {
+            Param_Storage_Commit();
+        }
     }
 }

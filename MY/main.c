@@ -22,6 +22,7 @@
 #include "lvgl.h"
 #include "lv_port_lcd_stm32.h"
 #include "ui_watch.h"
+#include "esp32_wifi.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -174,25 +175,21 @@ static void Task_Sensor(void *pvParameters)
    任务 4: Task_WiFi (ESP32-C3 网络通信与云端数据同步任务)
    - 优先级: 1 (低优先级)
    - 栈大小: 512 words (2048 字节)
+   - 架构:   USART2 DMA + 空闲中断 + 环形缓冲区 (RingBuffer) 异步事件驱动
    ============================================================================ */
 static void Task_WiFi(void *pvParameters)
 {
-    TickType_t last_sync_tick = xTaskGetTickCount();
     (void)pvParameters;
 
     printf("[FreeRTOS] WiFi Task Initialized (Priority 1).\r\n");
 
-    /* 上电缓冲 2 秒，等待 ESP32-C3 模组完成射频自检 */
+    /* 上电缓冲 2 秒，等待 ESP32-C3 模组完成射频硬件自检 */
     vTaskDelay(pdMS_TO_TICKS(2000));
 
     while (1)
     {
-        /* 定期探活与业务同步骨架 (后续挂载 DMA+IDLE 接收环形缓冲) */
-        if ((xTaskGetTickCount() - last_sync_tick) >= pdMS_TO_TICKS(5000))
-        {
-            last_sync_tick = xTaskGetTickCount();
-            /* 预留: 定时组装传感器 JSON 包推向云端或拉取天气/对时 */
-        }
+        /* 执行 WiFi 状态机轮询 (自适应探活与数据同步) */
+        ESP32_WiFi_TaskLoop();
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
@@ -245,6 +242,7 @@ int main(void)
     ADC_Battery_Init(); /* PA0 电池 12-bit ADC 初始化 */
     AHT20_Init();       /* PB6/PB7 AHT20 温湿度传感器初始化 */
     MPU6050_Init();     /* PF0/PF1 MPU6050 六轴姿态传感器初始化 */
+    ESP32_WiFi_Init();  /* PA2/PA3 USART2 DMA + IDLE + RingBuffer 初始化 */
 
     printf("\r\n=======================================================\r\n");
     printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");

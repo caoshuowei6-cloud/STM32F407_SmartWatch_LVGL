@@ -479,6 +479,11 @@
               <FileType>5</FileType>
               <FilePath>..\Drive\Include\mpu6050.h</FilePath>
             </File>
+            <File>
+              <FileName>esp32_wifi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\esp32_wifi.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

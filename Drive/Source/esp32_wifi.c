@@ -7,6 +7,7 @@
   */
 
 #include "esp32_wifi.h"
+#include "ota_manager.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -470,25 +471,81 @@ static bool ESP32_StartTCPServer(uint16_t port)
     return ok;
 }
 
+bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
+{
+    char send_cmd[32];
+    uint16_t len = (uint16_t)strlen(resp);
+    snprintf(send_cmd, sizeof(send_cmd), "AT+CIPSEND=%d,%d\r\n", client_id, len);
+    if (!ESP32_SendCmd(send_cmd, ">", 2000))
+    {
+        return false;
+    }
+    ESP32_SendRaw((const uint8_t *)resp, len);
+    return ESP32_SendCmd("", "SEND OK", 2000);
+}
+
 static void ESP32_CheckClientEvent(void)
 {
-    uint8_t buf[128];
+    static uint8_t buf[1024];
     uint16_t len = RingBuffer_Read(buf, sizeof(buf) - 1);
     uint8_t cid;
 
     if (len > 0)
     {
         buf[len] = '\0';
+
+        /* 1. 检查客户端连接事件 */
         if (sscanf((char *)buf, "%hhu,CONNECT", &cid) == 1 || sscanf((char *)buf, "+LINK_CONN:%hhu", &cid) == 1)
         {
             s_tcp_client_id = cid;
             s_tcp_client_connected = true;
             printf("[ESP32] TCP Client #%d connected!\r\n", cid);
+            return;
         }
-        else if (sscanf((char *)buf, "%hhu,DISCONNECT", &cid) == 1 || strstr((char *)buf, "CLOSED") != NULL)
+
+        /* 2. 检查客户端断开事件 */
+        if (sscanf((char *)buf, "%hhu,DISCONNECT", &cid) == 1 || strstr((char *)buf, "CLOSED") != NULL)
         {
             s_tcp_client_connected = false;
             printf("[ESP32] TCP Client disconnected.\r\n");
+            return;
+        }
+
+        /* 3. 检查 +IPD 传入数据流 (OTA 协议与远程指令) */
+        char *ipd_pos = strstr((char *)buf, "+IPD,");
+        if (ipd_pos != NULL)
+        {
+            int link_id = 0;
+            int data_len = 0;
+            char *colon_pos = strchr(ipd_pos, ':');
+            if (colon_pos != NULL && (colon_pos - ipd_pos) < 32)
+            {
+                if (sscanf(ipd_pos, "+IPD,%d,%d:", &link_id, &data_len) >= 2)
+                {
+                    s_tcp_client_id = (uint8_t)link_id;
+                    s_tcp_client_connected = true;
+
+                    const uint8_t *payload = (const uint8_t *)(colon_pos + 1);
+                    uint16_t payload_len = len - (uint16_t)(payload - buf);
+                    if (payload_len > (uint16_t)data_len)
+                    {
+                        payload_len = (uint16_t)data_len;
+                    }
+
+                    char resp[64] = {0};
+                    if (OTA_ProcessMessage(payload, payload_len, resp, sizeof(resp)))
+                    {
+                        ESP32_SendTCPResponse((uint8_t)link_id, resp);
+
+                        if (strstr(resp, "REBOOTING") != NULL)
+                        {
+                            printf("[OTA] Rebooting into Bootloader in 300ms...\r\n");
+                            vTaskDelay(pdMS_TO_TICKS(300));
+                            NVIC_SystemReset();
+                        }
+                    }
+                }
+            }
         }
     }
 }

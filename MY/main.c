@@ -25,6 +25,7 @@
 #include "esp32_wifi.h"
 #include "power_manager.h"
 #include "param_storage.h"
+#include "ota_manager.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -268,6 +269,7 @@ int main(void)
     ESP32_WiFi_Init();  /* PA2/PA3 USART2 DMA + IDLE + RingBuffer 初始化 */
     Power_Manager_Init();/* 低功耗电源管理器初始化 (PD13 背光与 15s 息屏) */
     Param_Storage_Init();/* 两级非易失性参数存储初始化 (恢复步数/配置，跨天自动归零) */
+    OTA_Manager_Init();  /* 无线 OTA 暂存区管理器初始化 (双镜像防变砖就绪) */
 
     printf("\r\n=======================================================\r\n");
     printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");

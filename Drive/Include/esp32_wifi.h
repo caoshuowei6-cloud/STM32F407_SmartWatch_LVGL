@@ -12,8 +12,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define ESP32_RX_DMA_BUF_SIZE     512   /* DMA 单次硬件循环接收缓冲区 */
-#define ESP32_RING_BUF_SIZE       1024  /* 环形消息队列容量 (抗突发网络报文削峰) */
+#define ESP32_RX_DMA_BUF_SIZE     1024  /* DMA 单次硬件循环接收缓冲区 */
+#define ESP32_RING_BUF_SIZE       2048  /* 环形消息队列容量 (抗突发网络报文削峰与OTA传输) */
 
 /* 默认 Wi-Fi 热点配置 (对标原 F1 工程，可按需修改) */
 #ifndef WIFI_STA_SSID

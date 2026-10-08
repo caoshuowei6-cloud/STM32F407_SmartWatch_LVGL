@@ -29,3 +29,4 @@ Project/DebugConfig/
 !Project/STM32F407_APP.sct
 !Bootloader/Project/Bootloader.sct
 *.lst
+Bootloader/Project/DebugConfig/

@@ -39,6 +39,19 @@ static uint32_t Calc_Checksum(const sys_params_t * p)
     return sum;
 }
 
+static bool Is_Newer_Day(uint8_t curr_y, uint8_t curr_m, uint8_t curr_d,
+                         uint8_t last_y, uint8_t last_m, uint8_t last_d)
+{
+    /* 若任一日期为 0 (未初始化/RTC未就绪)，不触发跨天归零 */
+    if (last_d == 0 || last_m == 0 || curr_d == 0 || curr_m == 0) return false;
+
+    if (curr_y > last_y) return true;
+    if (curr_y == last_y && curr_m > last_m) return true;
+    if (curr_y == last_y && curr_m == last_m && curr_d > last_d) return true;
+
+    return false;
+}
+
 /* ----------------------------------------------------------------------------
    1. RTC 备份域高速读写 (避开 rtc_f407 使用的 DR0 和 DR1，使用 DR2 ~ DR7)
    ---------------------------------------------------------------------------- */
@@ -178,21 +191,26 @@ static bool Save_To_Flash_WearLeveling(const sys_params_t * p)
 void Param_Storage_Init(void)
 {
     bool loaded = false;
+    rtc_time_date_t curr_dt;
+
+    RTC_F407_GetDateTime(&curr_dt);
 
     /* 1. 扫描 Flash 扇区 11 的 Wear-Leveling 槽位 (即使断电拔线也永久可靠) */
     if (Scan_Last_Valid_Slot(&s_params, &s_current_slot_idx))
     {
         loaded = true;
-        printf("[ParamStorage] Recovered from Flash Slot #%u (Steps: %u).\r\n",
+        printf("[ParamStorage] Recovered from Flash Slot #%u (Steps: %u, Date: 20%02d-%02d-%02d).\r\n",
                (unsigned int)(s_current_slot_idx > 0 ? s_current_slot_idx - 1 : 0),
-               (unsigned int)s_params.step_count);
+               (unsigned int)s_params.step_count,
+               s_params.last_year, s_params.last_month, s_params.last_date);
     }
     /* 2. 其次尝试从 RTC 备份域读取 (有纽扣电池时维持) */
     else if (Read_From_RTC_BKP(&s_params))
     {
         loaded = true;
-        printf("[ParamStorage] Loaded Parameters from RTC Backup Domain (Steps: %u).\r\n",
-               (unsigned int)s_params.step_count);
+        printf("[ParamStorage] Loaded Parameters from RTC Backup Domain (Steps: %u, Date: 20%02d-%02d-%02d).\r\n",
+               (unsigned int)s_params.step_count,
+               s_params.last_year, s_params.last_month, s_params.last_date);
     }
 
     /* 3. 若首次烧录尚未保存过任何数据，初始化默认值并写入 Slot 0 */
@@ -204,9 +222,9 @@ void Param_Storage_Init(void)
         s_params.auto_sleep_sec = 15;
         s_params.wrist_wake_en  = 1;
         s_params.auto_sleep_en  = 1;
-        s_params.last_year      = 26;
-        s_params.last_month     = 10;
-        s_params.last_date      = 7;
+        s_params.last_year      = curr_dt.year ? curr_dt.year : 26;
+        s_params.last_month     = curr_dt.month ? curr_dt.month : 10;
+        s_params.last_date      = curr_dt.date ? curr_dt.date : 8;
         s_params.alarm_en       = 0;
         s_params.alarm_hour     = 8;
         s_params.alarm_min      = 0;
@@ -214,6 +232,40 @@ void Param_Storage_Init(void)
         s_params.checksum       = Calc_Checksum(&s_params);
 
         Param_Storage_Commit();
+    }
+    else
+    {
+        /* 检查开机是否已跨天（过夜开机 / 隔天开机自检） */
+        if (Is_Newer_Day(curr_dt.year, curr_dt.month, curr_dt.date,
+                         s_params.last_year, s_params.last_month, s_params.last_date))
+        {
+            printf("\r\n=======================================================\r\n");
+            printf(" [ParamStorage] >>> NEW DAY DETECTED AT BOOT! <<<      \r\n");
+            printf(" Last Recorded Date : 20%02d-%02d-%02d (%u steps)       \r\n",
+                   s_params.last_year, s_params.last_month, s_params.last_date,
+                   (unsigned int)s_params.step_count);
+            printf(" Current RTC Date   : 20%02d-%02d-%02d                 \r\n",
+                   curr_dt.year, curr_dt.month, curr_dt.date);
+            printf(" >>> Resetting Daily Step Count to 0 for New Day! <<<  \r\n");
+            printf("=======================================================\r\n\r\n");
+
+            s_params.step_count = 0;
+            s_params.last_year  = curr_dt.year;
+            s_params.last_month = curr_dt.month;
+            s_params.last_date  = curr_dt.date;
+            Save_To_Flash_WearLeveling(&s_params);
+            Save_To_RTC_BKP(&s_params);
+        }
+        else
+        {
+            /* 同一天开机：若当前合法日期存在，同步更新至记录 */
+            if (curr_dt.date != 0 && curr_dt.month != 0)
+            {
+                s_params.last_year  = curr_dt.year;
+                s_params.last_month = curr_dt.month;
+                s_params.last_date  = curr_dt.date;
+            }
+        }
     }
 
     /* 4. 彻底恢复步数至 MPU6050 计步引擎 (开机绝对不误清零) */
@@ -231,7 +283,9 @@ void Param_Storage_Init(void)
     printf("\r\n=======================================================\r\n");
     printf(" [Wear-Leveling Storage] Ready! Slot Usage: %u / %u  \r\n",
            (unsigned int)s_current_slot_idx, (unsigned int)PARAM_MAX_SLOTS);
-    printf(" Current Steps : %u steps (Persistent across reboot)   \r\n", (unsigned int)s_params.step_count);
+    printf(" Current Steps : %u steps (Date: 20%02d-%02d-%02d)     \r\n",
+           (unsigned int)s_params.step_count,
+           s_params.last_year, s_params.last_month, s_params.last_date);
     printf(" Auto-Sleep    : %u s | Wrist-Wake: %s                 \r\n",
            (unsigned int)s_params.auto_sleep_sec,
            s_params.wrist_wake_en ? "ENABLED" : "DISABLED");
@@ -274,22 +328,53 @@ void Param_Storage_Sync(void)
 {
     uint32_t curr_steps = MPU6050_GetStepCount();
     uint32_t now = xTaskGetTickCount();
+    rtc_time_date_t curr_dt;
+
+    RTC_F407_GetDateTime(&curr_dt);
+
+    /* 1. 运行中跨天检测：手表开机过夜跨过凌晨 00:00:00，或 NTP 对时更新到新一天时自动清零 */
+    if (Is_Newer_Day(curr_dt.year, curr_dt.month, curr_dt.date,
+                     s_params.last_year, s_params.last_month, s_params.last_date))
+    {
+        printf("\r\n=======================================================\r\n");
+        printf(" [ParamStorage] >>> MIDNIGHT CROSSED: 20%02d-%02d-%02d <<< \r\n",
+               curr_dt.year, curr_dt.month, curr_dt.date);
+        printf(" Yesterday's Final Steps : %u steps                     \r\n", (unsigned int)s_params.step_count);
+        printf(" >>> Daily Steps Automatically Reset to 0! <<<        \r\n");
+        printf("=======================================================\r\n\r\n");
+
+        s_params.step_count = 0;
+        s_params.last_year  = curr_dt.year;
+        s_params.last_month = curr_dt.month;
+        s_params.last_date  = curr_dt.date;
+        MPU6050_SetStepCount(0);
+        curr_steps = 0;
+
+        Param_Storage_Commit();
+        return;
+    }
+
+    /* 保持当前日期戳与合法 RTC 日期同步 */
+    if (curr_dt.date != 0 && curr_dt.month != 0)
+    {
+        s_params.last_year  = curr_dt.year;
+        s_params.last_month = curr_dt.month;
+        s_params.last_date  = curr_dt.date;
+    }
 
     s_params.step_count = curr_steps;
 
-    /* 1. 步数变化时：在 RTC 备份域中维持 (0 Flash 磨损) */
+    /* 2. 步数变化时：在 RTC 备份域中维持 (0 Flash 磨损) */
     if (curr_steps != s_last_saved_steps)
     {
         s_params.checksum = Calc_Checksum(&s_params);
-        PWR_BackupAccessCmd(ENABLE);
-        RTC_WriteBackupRegister(RTC_BKP_DR3, curr_steps);
-        RTC_WriteBackupRegister(RTC_BKP_DR7, s_params.checksum);
+        Save_To_RTC_BKP(&s_params);
         s_last_saved_steps = curr_steps;
         s_last_step_change_tick = now;
         s_need_flash_save = true;
     }
 
-    /* 2. 及时固化至 Flash Wear-Leveling 槽位：
+    /* 3. 及时固化至 Flash Wear-Leveling 槽位：
        - 当步数增加达到 3 步以上；
        - 或者走完一段路、停下来超过 1.5 秒未产生新步数时，
        立即触发槽位追加写入！耗时仅 0.08ms，即便拔掉电源步数也已写入内部 Flash！ */

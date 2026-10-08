@@ -248,6 +248,10 @@ static void Task_Heartbeat(void *pvParameters)
    ============================================================================ */
 int main(void)
 {
+    /* 0. 向量表重映射双重保险：确保中断向量表严格对齐到 APP 所在的 Sector 5 (0x08020000) */
+    SCB->VTOR = FLASH_BASE | 0x20000;
+    __enable_irq();
+
     /* 1. NVIC 中断优先级分组：必须配置为 4 (所有 4 位均为抢占优先级，FreeRTOS 铁律) */
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 

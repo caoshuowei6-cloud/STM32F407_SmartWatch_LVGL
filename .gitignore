@@ -26,3 +26,4 @@ Project/DebugConfig/
 # VS Code 临时文件
 .vscode/*
 !.vscode/c_cpp_properties.json
+!Project/STM32F407_APP.sct

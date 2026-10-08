@@ -361,7 +361,9 @@
 /*!< Uncomment the following line if you need to relocate your vector Table in
      Internal SRAM. */
 /* #define VECT_TAB_SRAM */
-#define VECT_TAB_OFFSET  0x20000 /*!< Vector Table base offset field. Relocated to Sector 5 for IAP/OTA. */
+#ifndef VECT_TAB_OFFSET
+#define VECT_TAB_OFFSET  0x00 /*!< Vector Table base offset field. Can be overridden via compiler defines. */
+#endif
 /******************************************************************************/
 
 /************************* PLL Parameters *************************************/

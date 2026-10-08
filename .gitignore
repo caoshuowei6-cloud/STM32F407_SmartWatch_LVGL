@@ -27,3 +27,5 @@ Project/DebugConfig/
 .vscode/*
 !.vscode/c_cpp_properties.json
 !Project/STM32F407_APP.sct
+!Bootloader/Project/Bootloader.sct
+*.lst

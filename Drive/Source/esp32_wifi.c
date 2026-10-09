@@ -8,6 +8,8 @@
 
 #include "esp32_wifi.h"
 #include "ota_manager.h"
+#include "aht20.h"
+#include "mpu6050.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -461,7 +463,8 @@ static bool ESP32_StartTCPServer(uint16_t port)
     ok &= ESP32_SendCmd("AT+CIPMUX=1\r\n", "OK", 2000);
     snprintf(cmd, sizeof(cmd), "AT+CIPSERVER=1,%d\r\n", port);
     ok &= ESP32_SendCmd(cmd, "OK", 3000);
-    ok &= ESP32_SendCmd("AT+CIPDINFO=1\r\n", "OK", 2000);
+    /* 保持 CIPDINFO=0，使 +IPD 报文格式标准化为 +IPD,<id>,<len>:<data> */
+    ESP32_SendCmd("AT+CIPDINFO=0\r\n", "OK", 1000);
 
     if (ok)
     {
@@ -469,6 +472,31 @@ static bool ESP32_StartTCPServer(uint16_t port)
         printf("[ESP32] TCP Server started on port %d.\r\n", port);
     }
     return ok;
+}
+
+/* 内部辅助：等待数据发送完成响应 (避免调用 SendCmdEx 清空环形缓冲冲掉后续报文) */
+static bool ESP32_WaitSendAck(uint32_t timeout_ms)
+{
+    TickType_t start_tick = xTaskGetTickCount();
+    while ((xTaskGetTickCount() - start_tick) < pdMS_TO_TICKS(timeout_ms))
+    {
+        uint8_t ack_buf[64];
+        uint16_t r = RingBuffer_Read(ack_buf, sizeof(ack_buf) - 1);
+        if (r > 0)
+        {
+            ack_buf[r] = '\0';
+            if (strstr((char *)ack_buf, "SEND OK") != NULL)
+            {
+                return true;
+            }
+            if (strstr((char *)ack_buf, "FAIL") != NULL || strstr((char *)ack_buf, "ERROR") != NULL)
+            {
+                return false;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+    return false;
 }
 
 bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
@@ -481,7 +509,7 @@ bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
         return false;
     }
     ESP32_SendRaw((const uint8_t *)resp, len);
-    return ESP32_SendCmd("", "SEND OK", 2000);
+    return ESP32_WaitSendAck(2000);
 }
 
 static void ESP32_CheckClientEvent(void)
@@ -500,7 +528,7 @@ static void ESP32_CheckClientEvent(void)
             s_tcp_client_id = cid;
             s_tcp_client_connected = true;
             printf("[ESP32] TCP Client #%d connected!\r\n", cid);
-            return;
+            /* 不在此处提前 return，因为第一包数据可能紧跟在 CONNECT 后到达 */
         }
 
         /* 2. 检查客户端断开事件 */
@@ -511,22 +539,40 @@ static void ESP32_CheckClientEvent(void)
             return;
         }
 
-        /* 3. 检查 +IPD 传入数据流 (OTA 协议与远程指令) */
+        /* 3. 检查 +IPD 传入数据流 (兼容标准模式与扩展信息模式) */
         char *ipd_pos = strstr((char *)buf, "+IPD,");
         if (ipd_pos != NULL)
         {
             int link_id = 0;
             int data_len = 0;
             char *colon_pos = strchr(ipd_pos, ':');
-            if (colon_pos != NULL && (colon_pos - ipd_pos) < 32)
+            if (colon_pos != NULL && (colon_pos - ipd_pos) < 64)
             {
-                if (sscanf(ipd_pos, "+IPD,%d,%d:", &link_id, &data_len) >= 2)
+                if (sscanf(ipd_pos, "+IPD,%d,%d", &link_id, &data_len) >= 2)
                 {
                     s_tcp_client_id = (uint8_t)link_id;
                     s_tcp_client_connected = true;
 
                     const uint8_t *payload = (const uint8_t *)(colon_pos + 1);
                     uint16_t payload_len = len - (uint16_t)(payload - buf);
+
+                    /* 若 UART 分包截断导致长度不足，短时轮询补齐 */
+                    uint32_t wait_start = xTaskGetTickCount();
+                    while (payload_len < (uint16_t)data_len && (xTaskGetTickCount() - wait_start) < pdMS_TO_TICKS(100))
+                    {
+                        uint16_t more = RingBuffer_Read(buf + len, sizeof(buf) - 1 - len);
+                        if (more > 0)
+                        {
+                            len += more;
+                            buf[len] = '\0';
+                            payload_len = len - (uint16_t)(payload - buf);
+                        }
+                        else
+                        {
+                            vTaskDelay(pdMS_TO_TICKS(2));
+                        }
+                    }
+
                     if (payload_len > (uint16_t)data_len)
                     {
                         payload_len = (uint16_t)data_len;
@@ -571,7 +617,7 @@ bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, 
     }
 
     ESP32_SendRaw((const uint8_t *)json, json_len);
-    return ESP32_SendCmd("", "SEND OK", 2000);
+    return ESP32_WaitSendAck(2000);
 }
 
 bool ESP32_WiFi_IsOnline(void)
@@ -685,11 +731,19 @@ void ESP32_WiFi_TaskLoop(void)
             /* 1. 检查客户端连接/断开事件 */
             ESP32_CheckClientEvent();
 
-            /* 2. 定期 1 秒向连接的客户端上报数据 */
+            /* 2. 定期 1 秒向连接的客户端上报数据 (OTA 期间暂停上报，独占带宽防冲突) */
             if ((xTaskGetTickCount() - s_last_upload_tick) >= pdMS_TO_TICKS(1000))
             {
                 s_last_upload_tick = xTaskGetTickCount();
-                /* 预留：若客户端在线，可调用 ESP32_UploadSensorData() */
+                if (s_tcp_client_connected && OTA_GetState() == OTA_STATE_IDLE)
+                {
+                    float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
+                    MPU6050_GetAttitude(&pitch, &roll, &yaw);
+                    ESP32_UploadSensorData(AHT20_GetLastTemp(),
+                                           AHT20_GetLastHumi(),
+                                           (int32_t)MPU6050_GetStepCount(),
+                                           pitch, roll);
+                }
             }
 
             /* 3. 每一小时 (3600s) 自动重新校准一次 NTP 时间 */
@@ -699,7 +753,7 @@ void ESP32_WiFi_TaskLoop(void)
                 ESP32_SyncNTPTime();
             }
 
-            vTaskDelay(pdMS_TO_TICKS(50));
+            vTaskDelay(pdMS_TO_TICKS(10));
             break;
         }
 

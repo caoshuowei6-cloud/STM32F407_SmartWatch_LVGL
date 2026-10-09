@@ -211,7 +211,7 @@ static void Task_WiFi(void *pvParameters)
         /* 执行 WiFi 状态机轮询 (自适应探活与数据同步) */
         ESP32_WiFi_TaskLoop();
 
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

@@ -1,7 +1,8 @@
 /**
   ******************************************************************************
   * @file    boot_uart.c
-  * @brief   Bootloader 调试串口与控制台输出驱动 (USART1 115200 8N1)
+  * @brief   Bootloader 调试串口驱动与 printf 重定向 (USART1 115200 8N1)
+  *          彻底禁用 Semi-hosting 半主机模式，杜绝脱机运行时卡死
   ******************************************************************************
   */
 
@@ -9,6 +10,29 @@
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_usart.h"
+
+/* 彻底禁用 Semi-hosting 半主机模式 */
+#pragma import(__use_no_semihosting)
+
+struct __FILE
+{
+    int handle;
+};
+
+FILE __stdout;
+
+void _sys_exit(int x)
+{
+    (void)x;
+    while (1)
+    {
+    }
+}
+
+void _ttywrch(int ch)
+{
+    (void)ch;
+}
 
 void Boot_Uart_Init(uint32_t baudrate)
 {

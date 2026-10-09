@@ -163,8 +163,16 @@ bool Boot_CopyStagingToApp(uint32_t size)
 }
 
 /* ============================================================================
+   纯汇编原子跳转函数 (彻底消除切换 MSP 后编译器访问旧栈帧的崩栈风险)
+   ============================================================================ */
+__asm void Boot_JumpToAppAsm(uint32_t app_msp, uint32_t jump_pc)
+{
+    MSR MSP, r0
+    BX r1
+}
+
+/* ============================================================================
    严谨的 Cortex-M4 应用程序安全跳转
-   彻底清理 NVIC 中断挂起、关闭 SysTick、重设时钟并设置 VTOR 与 MSP
    ============================================================================ */
 void Boot_JumpToApp(uint32_t app_addr)
 {
@@ -174,7 +182,7 @@ void Boot_JumpToApp(uint32_t app_addr)
         return;
     }
 
-    printf("[BOOT] Preparing safe jump to APP (0x%08X)...\r\n", app_addr);
+    printf("[BOOT] Safe jumping to APP (0x%08X)...\r\n", app_addr);
 
     /* 1. 全局关中断：防止跳转瞬间触发旧向量表 ISR */
     __disable_irq();
@@ -191,23 +199,19 @@ void Boot_JumpToApp(uint32_t app_addr)
         NVIC->ICPR[i] = 0xFFFFFFFFU;
     }
 
-    /* 4. 复位 RCC 时钟树至出厂状态 (恢复 HSI 16MHz，关闭 PLL 与所有外设时钟) */
-    RCC_DeInit();
-
-    /* 5. 指令与内存同步屏障 */
+    /* 4. 指令与内存同步屏障 */
     __DSB();
     __ISB();
 
-    /* 6. 中断向量表重映射到目标 APP 起始地址 */
+    /* 5. 中断向量表重映射到目标 APP 起始地址 */
     SCB->VTOR = app_addr;
 
-    /* 7. 重置主栈指针 MSP */
-    __set_MSP(*(__IO uint32_t *)app_addr);
-
-    /* 8. 取出 Reset_Handler 入口地址并执行跳转 */
+    /* 6. 取出 APP 栈顶与 Reset_Handler 入口地址 */
+    uint32_t app_msp = *(__IO uint32_t *)app_addr;
     uint32_t jump_pc = *(__IO uint32_t *)(app_addr + 4U);
-    void (*app_entry)(void) = (void (*)(void))jump_pc;
-    app_entry();
+
+    /* 7. 使用纯汇编原子执行 MSP 切换与分支跳转 */
+    Boot_JumpToAppAsm(app_msp, jump_pc);
 
     /* 正常流程不会执行到此处 */
     while (1)

@@ -35,6 +35,24 @@ def print_progress(current: int, total: int, prefix="OTA Upload"):
         sys.stdout.write("\n")
 
 
+def recv_until(s, keywords, timeout):
+    s.settimeout(timeout)
+    buf = ""
+    start = time.time()
+    while (time.time() - start) < timeout:
+        try:
+            data = s.recv(128).decode("utf-8", errors="ignore")
+            if not data:
+                break
+            buf += data
+            for kw in keywords:
+                if kw in buf:
+                    return buf
+        except socket.timeout:
+            break
+    return buf
+
+
 def send_ota(ip: str, port: int, bin_path: str):
     if not os.path.isfile(bin_path):
         print(f"[ERROR] 固件文件不存在: {bin_path}")
@@ -71,23 +89,15 @@ def send_ota(ip: str, port: int, bin_path: str):
     start_cmd = f"OTA_START:{fw_size}:{fw_crc:08X}\n".encode("utf-8")
     s.sendall(start_cmd)
 
-    s.settimeout(TIMEOUT_SECTOR_ERASE)
-    try:
-        resp = s.recv(128).decode("utf-8", errors="ignore").strip()
-    except socket.timeout:
-        print("[ERROR] 等待暂存区扇区擦除超时！")
-        s.close()
-        return False
-
+    resp = recv_until(s, ["OTA_OK:READY", "OTA_ERR:"], TIMEOUT_SECTOR_ERASE)
     if "OTA_OK:READY" not in resp:
-        print(f"[ERROR] 手表拒绝升级请求，响应: {resp}")
+        print(f"[ERROR] 手表拒绝升级请求或擦除超时，响应: {resp}")
         s.close()
         return False
 
     print("[+] 暂存区扇区擦除成功，开始分片流式推送固件...")
 
     # 2. 分片发送数据
-    s.settimeout(TIMEOUT_PER_CHUNK)
     offset = 0
     start_time = time.time()
 
@@ -100,7 +110,7 @@ def send_ota(ip: str, port: int, bin_path: str):
         s.sendall(packet)
 
         # 等待对手表的 ACK
-        resp = s.recv(128).decode("utf-8", errors="ignore").strip()
+        resp = recv_until(s, ["OTA_OK:", "OTA_ERR:"], TIMEOUT_PER_CHUNK)
         if "OTA_OK:" not in resp:
             print(f"\n[ERROR] 写入分片失败 (offset {offset})，响应: {resp}")
             s.close()
@@ -116,8 +126,7 @@ def send_ota(ip: str, port: int, bin_path: str):
     # 3. 发送 OTA_END，要求手表端校验 CRC32
     print("[*] 正在请求手表端执行硬件/软件全镜像 CRC32 完整性校验...")
     s.sendall(b"OTA_END\n")
-    s.settimeout(10.0)
-    resp = s.recv(128).decode("utf-8", errors="ignore").strip()
+    resp = recv_until(s, ["OTA_OK:VERIFIED", "OTA_ERR:"], 10.0)
 
     if "OTA_OK:VERIFIED" not in resp:
         print(f"[ERROR] 暂存区固件 CRC32 校验失败！响应: {resp}")
@@ -129,11 +138,7 @@ def send_ota(ip: str, port: int, bin_path: str):
     # 4. 发送 OTA_REBOOT 指令
     print("[*] 发送重启指令，通知手表进入 Bootloader 执行热升级...")
     s.sendall(b"OTA_REBOOT\n")
-    try:
-        resp = s.recv(128).decode("utf-8", errors="ignore").strip()
-    except Exception:
-        pass
-
+    recv_until(s, ["OTA_OK:REBOOTING"], 2.0)
     s.close()
 
     print("\n=======================================================")

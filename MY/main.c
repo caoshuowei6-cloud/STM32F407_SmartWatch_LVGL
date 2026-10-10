@@ -115,6 +115,13 @@ static void Task_UI(void *pvParameters)
             {
                 if (key_val != 0)
                 {
+                    /* 企业级 OTA 互斥保护：空中升级固件接收期间全面锁定按键，防止抢占 CPU 与总线冲突 */
+                    if (OTA_GetState() == OTA_STATE_RECEIVING)
+                    {
+                        printf("[OTA Lock] Key %d blocked! Firmware upgrade in progress.\r\n", key_val);
+                        continue;
+                    }
+
                     /* 低功耗电源管理：若息屏则立即点亮背光并拦截本次按键防误触 */
                     if (Power_Manager_OnKey(key_val))
                     {
@@ -183,7 +190,11 @@ static void Task_Sensor(void *pvParameters)
             last_1s_tick = xTaskGetTickCount();
             AHT20_Read(NULL, NULL);
             ADC_Battery_GetVoltage();
-            Param_Storage_Sync();
+            /* OTA 升级期间禁止 Flash 参数同步，彻底杜绝 Flash 写入冲突 */
+            if (OTA_GetState() != OTA_STATE_RECEIVING)
+            {
+                Param_Storage_Sync();
+            }
         }
 
         /* 释放 CPU 20ms */

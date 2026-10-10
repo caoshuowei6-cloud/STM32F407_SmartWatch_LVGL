@@ -499,6 +499,11 @@
               <FileType>1</FileType>
               <FilePath>..\Drive\Source\ota_manager.c</FilePath>
             </File>
+            <File>
+              <FileName>aes.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\aes.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

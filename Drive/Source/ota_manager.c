@@ -6,6 +6,7 @@
   */
 
 #include "ota_manager.h"
+#include "aes.h"
 #include "stm32f4xx_flash.h"
 #include "stm32f4xx_pwr.h"
 #include "stm32f4xx_rcc.h"
@@ -15,9 +16,20 @@
 #include <stdlib.h>
 
 /* ============================================================================
-   模块内部静态状态与上下文
+   模块内部静态状态与上下文 (含 AES-128-CBC 预共享加密密钥与向量)
    ============================================================================ */
-static ota_state_t s_ota_state = OTA_STATE_IDLE;
+static const uint8_t s_ota_aes_key[16] = {
+    0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6,
+    0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C
+};
+
+static const uint8_t s_ota_aes_iv[16] = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+};
+
+static struct AES_ctx s_aes_ctx;
+static ota_state_t    s_ota_state = OTA_STATE_IDLE;
 static uint32_t    s_fw_size = 0;
 static uint32_t    s_expected_crc = 0;
 static uint32_t    s_written_bytes = 0;
@@ -136,12 +148,15 @@ bool OTA_Start(uint32_t total_size, uint32_t expected_crc)
     s_rem_len       = 0;
     s_ota_state     = OTA_STATE_RECEIVING;
 
-    printf("[OTA] Staging sectors ready. Waiting for firmware chunks...\r\n");
+    /* 初始化 AES-128-CBC 解密上下文 */
+    AES_init_ctx_iv(&s_aes_ctx, s_ota_aes_key, s_ota_aes_iv);
+
+    printf("[OTA] Staging sectors ready. AES-128 decryptor active. Waiting for firmware chunks...\r\n");
     return true;
 }
 
 /* ============================================================================
-   分片写入暂存区 (支持任意对齐与字节长度)
+   分片解密并写入暂存区 (支持 AES-128-CBC 在线解密与任意字对齐)
    ============================================================================ */
 bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 {
@@ -150,11 +165,23 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         return false;
     }
 
-    if ((s_written_bytes + s_rem_len + len) > s_fw_size)
+    if (len > 512 || (len % 16) != 0)
     {
-        printf("[OTA] Error: Firmware overflow! Total would exceed %u bytes\r\n", s_fw_size);
+        printf("[OTA] Error: Chunk len %u must be <= 512 and 16-byte aligned!\r\n", len);
         s_ota_state = OTA_STATE_ERROR;
         return false;
+    }
+
+    /* 1. 在线 AES-128-CBC 解密 */
+    uint8_t dec_buf[512];
+    memcpy(dec_buf, data, len);
+    AES_CBC_decrypt_buffer(&s_aes_ctx, dec_buf, len);
+
+    /* 2. 计算本次解密后有效明文长度 (自动丢弃末尾 16 字节对齐的填充字节) */
+    uint16_t valid_len = len;
+    if ((s_written_bytes + s_rem_len + valid_len) > s_fw_size)
+    {
+        valid_len = (uint16_t)(s_fw_size - (s_written_bytes + s_rem_len));
     }
 
     FLASH_Unlock();
@@ -163,10 +190,10 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 
     uint16_t in_idx = 0;
 
-    /* 1. 若上次遗留不足 4 字节，先补齐并写入 */
-    while (s_rem_len > 0 && s_rem_len < 4 && in_idx < len)
+    /* 3. 若上次遗留不足 4 字节，先补齐并写入 */
+    while (s_rem_len > 0 && s_rem_len < 4 && in_idx < valid_len)
     {
-        s_rem_buf[s_rem_len++] = data[in_idx++];
+        s_rem_buf[s_rem_len++] = dec_buf[in_idx++];
         if (s_rem_len == 4)
         {
             uint32_t word = ((uint32_t)s_rem_buf[0]) |
@@ -186,13 +213,13 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         }
     }
 
-    /* 2. 批量写入完整 4 字节 Word */
-    while ((in_idx + 4) <= len)
+    /* 4. 批量写入完整 4 字节 Word */
+    while ((in_idx + 4) <= valid_len)
     {
-        uint32_t word = ((uint32_t)data[in_idx]) |
-                        (((uint32_t)data[in_idx + 1]) << 8) |
-                        (((uint32_t)data[in_idx + 2]) << 16) |
-                        (((uint32_t)data[in_idx + 3]) << 24);
+        uint32_t word = ((uint32_t)dec_buf[in_idx]) |
+                        (((uint32_t)dec_buf[in_idx + 1]) << 8) |
+                        (((uint32_t)dec_buf[in_idx + 2]) << 16) |
+                        (((uint32_t)dec_buf[in_idx + 3]) << 24);
 
         if (FLASH_ProgramWord(OTA_STAGING_BASE_ADDR + s_written_bytes, word) != FLASH_COMPLETE)
         {
@@ -205,10 +232,10 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         in_idx += 4;
     }
 
-    /* 3. 剩余不满 4 字节的数据存入 s_rem_buf 等待下一包 */
-    while (in_idx < len)
+    /* 5. 剩余不满 4 字节的数据存入 s_rem_buf 等待下一包 */
+    while (in_idx < valid_len)
     {
-        s_rem_buf[s_rem_len++] = data[in_idx++];
+        s_rem_buf[s_rem_len++] = dec_buf[in_idx++];
     }
 
     FLASH_Lock();
@@ -232,6 +259,7 @@ bool OTA_Finish(void)
     /* 若末尾有不足 4 字节的数据，填充 0xFF 后写入 */
     if (s_rem_len > 0)
     {
+        uint8_t unwritten = s_rem_len;
         while (s_rem_len < 4)
         {
             s_rem_buf[s_rem_len++] = 0xFF;
@@ -247,7 +275,7 @@ bool OTA_Finish(void)
             s_ota_state = OTA_STATE_ERROR;
             return false;
         }
-        s_written_bytes += s_rem_len;
+        s_written_bytes += unwritten;
         s_rem_len = 0;
     }
 

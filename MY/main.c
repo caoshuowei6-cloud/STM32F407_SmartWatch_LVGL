@@ -272,7 +272,7 @@ int main(void)
     OTA_Manager_Init();  /* 无线 OTA 暂存区管理器初始化 (双镜像防变砖就绪) */
 
     printf("\r\n=======================================================\r\n");
-    printf("   STM32F407 SmartWatch [FreeRTOS V10.4.3 CM4F Online]  \r\n");
+    printf("   STM32F407 SmartWatch [V2.0 OTA Firmware Online!]     \r\n");
     printf("   Core Clock: %u MHz | RTOS Heap: %u KB                \r\n",
            (unsigned int)(SystemCoreClock / 1000000),
            (unsigned int)(configTOTAL_HEAP_SIZE / 1024));

@@ -4,8 +4,10 @@
 ===============================================================================
   STM32F407 SmartWatch Wireless OTA Push Tool (企业级无线 OTA 固件推送引擎)
   - 链路拓扑: PC (TCP Socket) -> ESP32-C3 (8080 Server) -> STM32F407 (USART2 DMA)
-  - 安全机制: AES-128-CBC 流式对称加密传输 (预共享密钥/向量)
-  - 完整性校验: IEEE 802.3 CRC32 全镜像硬件/软件双校验
+  - 传输模式: 
+      1. 明文模式 (默认): 兼容老固件平滑升级 (OTA_START)
+      2. 加密模式 (--encrypt): AES-128-CBC 空中流式对称密文传输 (OTA_START_AES)
+  - 完整性校验: IEEE 802.3 CRC32 全镜像软硬件双校验
   - 容错保护: 分片传输超时自适应、传输期手表按键全局互斥锁
 ===============================================================================
 """
@@ -20,9 +22,9 @@ import argparse
 try:
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     from cryptography.hazmat.backends import default_backend
+    HAS_CRYPTO = True
 except ImportError:
-    print("[ERROR] 缺少 cryptography 依赖库，请先运行: pip install cryptography")
-    sys.exit(1)
+    HAS_CRYPTO = False
 
 DEFAULT_PORT = 8080
 CHUNK_SIZE = 512             # 单个分片大小 (必须为 16 的倍数，以配合 AES 块加密)
@@ -79,6 +81,9 @@ def encrypt_firmware(plain_data: bytes) -> tuple[bytes, int, int]:
     对固件数据进行 16 字节对齐填充并使用 AES-128-CBC 加密
     返回: (加密后的密文字节流, 原始明文字节数, 原始明文CRC32)
     """
+    if not HAS_CRYPTO:
+        raise RuntimeError("缺少 cryptography 依赖库，请运行: pip install cryptography")
+
     plain_size = len(plain_data)
     plain_crc = calc_crc32(plain_data)
 
@@ -93,7 +98,7 @@ def encrypt_firmware(plain_data: bytes) -> tuple[bytes, int, int]:
     return enc_data, plain_size, plain_crc
 
 
-def send_ota(ip: str, port: int, bin_path: str):
+def send_ota(ip: str, port: int, bin_path: str, encrypt: bool = False):
     if not os.path.isfile(bin_path):
         print(f"[ERROR] 固件文件不存在: {bin_path}")
         return False
@@ -101,9 +106,21 @@ def send_ota(ip: str, port: int, bin_path: str):
     with open(bin_path, "rb") as f:
         fw_plain = f.read()
 
-    # 执行 AES-128-CBC 固件加密
-    fw_enc, plain_size, plain_crc = encrypt_firmware(fw_plain)
-    enc_size = len(fw_enc)
+    plain_size = len(fw_plain)
+    plain_crc = calc_crc32(fw_plain)
+
+    if encrypt:
+        # 执行 AES-128-CBC 固件加密
+        fw_send, _, _ = encrypt_firmware(fw_plain)
+        send_size = len(fw_send)
+        start_cmd_str = f"OTA_START_AES:{plain_size}:{plain_crc:08X}\n"
+        mode_str = "AES-128-CBC 密文空中流式加密"
+    else:
+        # 明文传输 (兼容老固件平滑过渡)
+        fw_send = fw_plain
+        send_size = plain_size
+        start_cmd_str = f"OTA_START:{plain_size}:{plain_crc:08X}\n"
+        mode_str = "标准明文流式传输 (兼容模式)"
 
     print(f"=======================================================")
     print(f"  STM32F407 智能手表企业级无线 OTA 固件推送引擎")
@@ -112,8 +129,8 @@ def send_ota(ip: str, port: int, bin_path: str):
     print(f"  固件文件路径    : {bin_path}")
     print(f"  明文固件大小    : {plain_size} 字节 ({plain_size / 1024:.1f} KB)")
     print(f"  明文固件 CRC32  : 0x{plain_crc:08X}")
-    print(f"  传输安全协议    : AES-128-CBC 密文空中传输")
-    print(f"  密文推送总量    : {enc_size} 字节 (16字节对齐填充)")
+    print(f"  传输安全协议    : {mode_str}")
+    print(f"  空中推送总量    : {send_size} 字节")
     print(f"  手表互斥锁策略  : 升级期间按键全局硬件加锁保护")
     print(f"=======================================================\n")
 
@@ -129,9 +146,8 @@ def send_ota(ip: str, port: int, bin_path: str):
 
     print("[+] TCP 链路建立成功！发送 OTA 握手指令与擦除请求...")
 
-    # 1. 发送 OTA_START 握手指令 (告知手表解密后目标大小与原始 CRC32)
-    start_cmd = f"OTA_START:{plain_size}:{plain_crc:08X}\n".encode("utf-8")
-    s.sendall(start_cmd)
+    # 1. 发送 OTA_START / OTA_START_AES 握手指令
+    s.sendall(start_cmd_str.encode("utf-8"))
 
     resp = recv_until(s, ["OTA_OK:READY", "OTA_ERR:"], TIMEOUT_SECTOR_ERASE)
     if "OTA_OK:READY" not in resp:
@@ -139,14 +155,15 @@ def send_ota(ip: str, port: int, bin_path: str):
         s.close()
         return False
 
-    print("[+] 手表暂存区擦除完成，AES 解密引擎已激活！开始分片流式密文推送...")
+    print("[+] 手表暂存区擦除完成！开始分片流式推送固件...")
 
-    # 2. 分片推送密文数据
+    # 2. 分片推送数据
     offset = 0
     start_time = time.time()
+    prefix_str = "AES OTA Upload" if encrypt else "Plain OTA Upload"
 
-    while offset < enc_size:
-        chunk = fw_enc[offset : offset + CHUNK_SIZE]
+    while offset < send_size:
+        chunk = fw_send[offset : offset + CHUNK_SIZE]
         chunk_len = len(chunk)
         header = f"OTA_DATA:{chunk_len}\n".encode("utf-8")
         packet = header + chunk
@@ -156,24 +173,24 @@ def send_ota(ip: str, port: int, bin_path: str):
         # 等待手表回复 ACK
         resp = recv_until(s, ["OTA_OK:", "OTA_ERR:"], TIMEOUT_PER_CHUNK)
         if "OTA_OK:" not in resp:
-            print(f"\n[ERROR] 写入密文分片失败 (offset {offset})，响应: {resp}")
+            print(f"\n[ERROR] 写入分片失败 (offset {offset})，响应: {resp}")
             s.close()
             return False
 
         offset += chunk_len
-        print_progress(offset, enc_size, prefix="AES OTA Upload")
+        print_progress(offset, send_size, prefix=prefix_str)
 
     elapsed = time.time() - start_time
-    speed = (enc_size / 1024.0) / elapsed if elapsed > 0 else 0
-    print(f"[+] 密文推送完毕！耗时: {elapsed:.2f}s (有效均速: {speed:.1f} KB/s)")
+    speed = (send_size / 1024.0) / elapsed if elapsed > 0 else 0
+    print(f"[+] 数据推送完毕！耗时: {elapsed:.2f}s (有效均速: {speed:.1f} KB/s)")
 
-    # 3. 发送 OTA_END，通知手表在线校验解密后明文的 CRC32
+    # 3. 发送 OTA_END，通知手表在线校验明文 CRC32
     print("[*] 正在请求手表端执行硬件/软件全镜像明文 CRC32 完整性校验...")
     s.sendall(b"OTA_END\n")
     resp = recv_until(s, ["OTA_OK:VERIFIED", "OTA_ERR:"], 10.0)
 
     if "OTA_OK:VERIFIED" not in resp:
-        print(f"[ERROR] 暂存区解密固件 CRC32 校验失败！响应: {resp}")
+        print(f"[ERROR] 暂存区固件 CRC32 校验失败！响应: {resp}")
         s.close()
         return False
 
@@ -186,17 +203,18 @@ def send_ota(ip: str, port: int, bin_path: str):
     s.close()
 
     print("\n=======================================================")
-    print("  [SUCCESS] 企业级 AES 加密 OTA 无线推送升级圆满完成！")
+    print("  [SUCCESS] OTA 无线固件升级推送圆满完成！")
     print("  手表正在进入 Bootloader 搬运固件并自动跳转至新系统。")
     print("=======================================================\n")
     return True
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="STM32F407 SmartWatch Wireless AES-128 OTA Pusher")
+    parser = argparse.ArgumentParser(description="STM32F407 SmartWatch Wireless Dual-Mode OTA Pusher")
     parser.add_argument("--ip", type=str, default="192.168.111.89", help="SmartWatch IP address (default: 192.168.111.89)")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="SmartWatch TCP port (default: 8080)")
     parser.add_argument("--bin", type=str, default=r"Project\Objects\STM32F429.bin", help="Path to firmware .bin file")
+    parser.add_argument("--encrypt", action="store_true", help="Enable AES-128-CBC encryption mode (requires receiver with AES support)")
 
     args = parser.parse_args()
 
@@ -212,5 +230,5 @@ if __name__ == "__main__":
                 bin_file = c
                 break
 
-    success = send_ota(args.ip, args.port, bin_file)
+    success = send_ota(args.ip, args.port, bin_file, encrypt=args.encrypt)
     sys.exit(0 if success else 1)

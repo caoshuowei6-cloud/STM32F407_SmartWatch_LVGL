@@ -29,6 +29,7 @@ static const uint8_t s_ota_aes_iv[16] = {
 };
 
 static struct AES_ctx s_aes_ctx;
+static bool           s_aes_enabled = false;
 static ota_state_t    s_ota_state = OTA_STATE_IDLE;
 static uint32_t    s_fw_size = 0;
 static uint32_t    s_expected_crc = 0;
@@ -72,6 +73,7 @@ void OTA_Manager_Init(void)
     s_expected_crc = 0;
     s_written_bytes = 0;
     s_rem_len = 0;
+    s_aes_enabled = false;
 }
 
 ota_state_t OTA_GetState(void)
@@ -89,7 +91,7 @@ uint32_t OTA_GetProgress(void)
 /* ============================================================================
    启动 OTA：参数校验与暂存区扇区擦除 (Sector 8~10)
    ============================================================================ */
-bool OTA_Start(uint32_t total_size, uint32_t expected_crc)
+bool OTA_Start(uint32_t total_size, uint32_t expected_crc, bool enable_aes)
 {
     if (total_size < 4096U || total_size > OTA_MAX_FIRMWARE_SIZE)
     {
@@ -98,7 +100,8 @@ bool OTA_Start(uint32_t total_size, uint32_t expected_crc)
         return false;
     }
 
-    printf("[OTA] Initializing OTA session: Size=%u, CRC=0x%08X\r\n", total_size, expected_crc);
+    printf("[OTA] Initializing OTA session: Size=%u, CRC=0x%08X, Mode=%s\r\n",
+           total_size, expected_crc, enable_aes ? "AES-128-CBC" : "Plaintext");
 
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
@@ -146,17 +149,24 @@ bool OTA_Start(uint32_t total_size, uint32_t expected_crc)
     s_expected_crc  = expected_crc;
     s_written_bytes = 0;
     s_rem_len       = 0;
+    s_aes_enabled   = enable_aes;
     s_ota_state     = OTA_STATE_RECEIVING;
 
-    /* 初始化 AES-128-CBC 解密上下文 */
-    AES_init_ctx_iv(&s_aes_ctx, s_ota_aes_key, s_ota_aes_iv);
-
-    printf("[OTA] Staging sectors ready. AES-128 decryptor active. Waiting for firmware chunks...\r\n");
+    if (s_aes_enabled)
+    {
+        /* 初始化 AES-128-CBC 解密上下文 */
+        AES_init_ctx_iv(&s_aes_ctx, s_ota_aes_key, s_ota_aes_iv);
+        printf("[OTA] Staging sectors ready. AES-128 decryptor active. Waiting for encrypted chunks...\r\n");
+    }
+    else
+    {
+        printf("[OTA] Staging sectors ready. Plaintext receiver active. Waiting for chunks...\r\n");
+    }
     return true;
 }
 
 /* ============================================================================
-   分片解密并写入暂存区 (支持 AES-128-CBC 在线解密与任意字对齐)
+   分片写入暂存区 (支持 AES-128 在线解密与标准明文双模)
    ============================================================================ */
 bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 {
@@ -165,23 +175,40 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         return false;
     }
 
-    if (len > 512 || (len % 16) != 0)
-    {
-        printf("[OTA] Error: Chunk len %u must be <= 512 and 16-byte aligned!\r\n", len);
-        s_ota_state = OTA_STATE_ERROR;
-        return false;
-    }
-
-    /* 1. 在线 AES-128-CBC 解密 */
-    uint8_t dec_buf[512];
-    memcpy(dec_buf, data, len);
-    AES_CBC_decrypt_buffer(&s_aes_ctx, dec_buf, len);
-
-    /* 2. 计算本次解密后有效明文长度 (自动丢弃末尾 16 字节对齐的填充字节) */
+    const uint8_t *src_data = data;
     uint16_t valid_len = len;
-    if ((s_written_bytes + s_rem_len + valid_len) > s_fw_size)
+    uint8_t dec_buf[512];
+
+    if (s_aes_enabled)
     {
-        valid_len = (uint16_t)(s_fw_size - (s_written_bytes + s_rem_len));
+        if (len > 512 || (len % 16) != 0)
+        {
+            printf("[OTA] Error: Chunk len %u must be <= 512 and 16-byte aligned for AES!\r\n", len);
+            s_ota_state = OTA_STATE_ERROR;
+            return false;
+        }
+
+        /* 在线 AES-128-CBC 解密 */
+        memcpy(dec_buf, data, len);
+        AES_CBC_decrypt_buffer(&s_aes_ctx, dec_buf, len);
+        src_data = dec_buf;
+
+        /* 计算本次解密后有效明文长度 (自动丢弃末尾 16 字节对齐的填充字节) */
+        if ((s_written_bytes + s_rem_len + valid_len) > s_fw_size)
+        {
+            valid_len = (uint16_t)(s_fw_size - (s_written_bytes + s_rem_len));
+        }
+    }
+    else
+    {
+        /* 明文模式校验溢出 */
+        if ((s_written_bytes + s_rem_len + len) > s_fw_size)
+        {
+            printf("[OTA] Error: Firmware overflow! Total would exceed %u bytes\r\n", s_fw_size);
+            s_ota_state = OTA_STATE_ERROR;
+            return false;
+        }
+        valid_len = len;
     }
 
     FLASH_Unlock();
@@ -190,10 +217,10 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 
     uint16_t in_idx = 0;
 
-    /* 3. 若上次遗留不足 4 字节，先补齐并写入 */
+    /* 1. 若上次遗留不足 4 字节，先补齐并写入 */
     while (s_rem_len > 0 && s_rem_len < 4 && in_idx < valid_len)
     {
-        s_rem_buf[s_rem_len++] = dec_buf[in_idx++];
+        s_rem_buf[s_rem_len++] = src_data[in_idx++];
         if (s_rem_len == 4)
         {
             uint32_t word = ((uint32_t)s_rem_buf[0]) |
@@ -213,13 +240,13 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         }
     }
 
-    /* 4. 批量写入完整 4 字节 Word */
+    /* 2. 批量写入完整 4 字节 Word */
     while ((in_idx + 4) <= valid_len)
     {
-        uint32_t word = ((uint32_t)dec_buf[in_idx]) |
-                        (((uint32_t)dec_buf[in_idx + 1]) << 8) |
-                        (((uint32_t)dec_buf[in_idx + 2]) << 16) |
-                        (((uint32_t)dec_buf[in_idx + 3]) << 24);
+        uint32_t word = ((uint32_t)src_data[in_idx]) |
+                        (((uint32_t)src_data[in_idx + 1]) << 8) |
+                        (((uint32_t)src_data[in_idx + 2]) << 16) |
+                        (((uint32_t)src_data[in_idx + 3]) << 24);
 
         if (FLASH_ProgramWord(OTA_STAGING_BASE_ADDR + s_written_bytes, word) != FLASH_COMPLETE)
         {
@@ -232,10 +259,10 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         in_idx += 4;
     }
 
-    /* 5. 剩余不满 4 字节的数据存入 s_rem_buf 等待下一包 */
+    /* 3. 剩余不满 4 字节的数据存入 s_rem_buf 等待下一包 */
     while (in_idx < valid_len)
     {
-        s_rem_buf[s_rem_len++] = dec_buf[in_idx++];
+        s_rem_buf[s_rem_len++] = src_data[in_idx++];
     }
 
     FLASH_Lock();
@@ -330,13 +357,31 @@ bool OTA_ProcessMessage(const uint8_t *payload, uint16_t len, char *resp_buf, ui
     }
 
     /* 1. OTA_START:<size>:<crc_hex> */
-    if (len >= 10 && strncmp((const char *)payload, "OTA_START:", 10) == 0)
+    /* 1. OTA_START:<size>:<crc_hex> 或 OTA_START_AES:<size>:<crc_hex> */
+    if (len >= 10 && strncmp((const char *)payload, "OTA_START", 9) == 0)
     {
+        bool is_aes = false;
+        const char *p = (const char *)payload + 9;
+        if (strncmp(p, "_AES:", 5) == 0)
+        {
+            is_aes = true;
+            p += 5;
+        }
+        else if (*p == ':')
+        {
+            is_aes = false;
+            p += 1;
+        }
+        else
+        {
+            p = NULL;
+        }
+
         uint32_t size = 0;
         uint32_t crc = 0;
-        if (sscanf((const char *)payload + 10, "%u:%x", &size, &crc) == 2)
+        if (p != NULL && sscanf(p, "%u:%x", &size, &crc) == 2)
         {
-            if (OTA_Start(size, crc))
+            if (OTA_Start(size, crc, is_aes))
             {
                 snprintf(resp_buf, resp_max_len, "OTA_OK:READY\r\n");
             }

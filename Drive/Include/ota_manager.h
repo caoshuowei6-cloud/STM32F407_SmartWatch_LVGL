@@ -35,7 +35,7 @@ void        OTA_Manager_Init(void);
 ota_state_t OTA_GetState(void);
 uint32_t    OTA_GetProgress(void); /* 0 ~ 100 % */
 
-bool        OTA_Start(uint32_t total_size, uint32_t expected_crc);
+bool        OTA_Start(uint32_t total_size, uint32_t expected_crc, bool enable_aes);
 bool        OTA_WriteChunk(const uint8_t *data, uint16_t len);
 bool        OTA_Finish(void);
 void        OTA_Abort(void);

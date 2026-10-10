@@ -101,7 +101,7 @@ lv_obj_t * ui_page_clock_create(lv_obj_t * parent)
 
     /* OTA 新固件验证标记: V3.0 天蓝色高亮居中徽标 (脱机物理隔离验证版) */
     lv_obj_t * label_ver = lv_label_create(top_box);
-    lv_label_set_text(label_ver, "V3.0");
+    lv_label_set_text(label_ver, "V4.0");
     lv_obj_set_style_text_color(label_ver, lv_color_hex(0x38BDF8), LV_PART_MAIN); /* 天蓝色 */
     lv_obj_align(label_ver, LV_ALIGN_CENTER, 0, 0);
 

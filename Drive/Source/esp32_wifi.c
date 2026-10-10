@@ -499,17 +499,50 @@ static bool ESP32_WaitSendAck(uint32_t timeout_ms)
     return false;
 }
 
-bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
+/* 内部辅助：通过 AT+CIPSEND 发送 TCP 数据帧 (不冲刷环形队列，不打印干扰日志) */
+static bool ESP32_TCPSend(uint8_t client_id, const uint8_t *data, uint16_t len)
 {
     char send_cmd[32];
-    uint16_t len = (uint16_t)strlen(resp);
     snprintf(send_cmd, sizeof(send_cmd), "AT+CIPSEND=%d,%d\r\n", client_id, len);
-    if (!ESP32_SendCmd(send_cmd, ">", 2000))
+
+    /* 1. 发送 AT+CIPSEND 指令 */
+    ESP32_SendRaw((const uint8_t *)send_cmd, (uint16_t)strlen(send_cmd));
+
+    /* 2. 等待 '>' 提示符 (超时 1 秒) */
+    TickType_t start = xTaskGetTickCount();
+    bool got_prompt = false;
+    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(1000))
+    {
+        uint8_t b;
+        if (RingBuffer_Read(&b, 1) > 0)
+        {
+            if (b == '>')
+            {
+                got_prompt = true;
+                break;
+            }
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(5));
+        }
+    }
+
+    if (!got_prompt)
     {
         return false;
     }
-    ESP32_SendRaw((const uint8_t *)resp, len);
+
+    /* 3. 发送数据正文 */
+    ESP32_SendRaw(data, len);
+
+    /* 4. 等待 SEND OK (超时 2 秒) */
     return ESP32_WaitSendAck(2000);
+}
+
+bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
+{
+    return ESP32_TCPSend(client_id, (const uint8_t *)resp, (uint16_t)strlen(resp));
 }
 
 static void ESP32_CheckClientEvent(void)
@@ -522,17 +555,31 @@ static void ESP32_CheckClientEvent(void)
     {
         buf[len] = '\0';
 
-        /* 1. 检查客户端连接事件 */
-        if (sscanf((char *)buf, "%hhu,CONNECT", &cid) == 1 || sscanf((char *)buf, "+LINK_CONN:%hhu", &cid) == 1)
+        /* 1. 检查客户端连接事件: "<id>,CONNECT" 或 "+LINK_CONN:<id>" */
+        char *conn_pos = strstr((char *)buf, ",CONNECT");
+        if (conn_pos != NULL)
         {
-            s_tcp_client_id = cid;
+            if (conn_pos > (char *)buf && *(conn_pos - 1) >= '0' && *(conn_pos - 1) <= '9')
+            {
+                s_tcp_client_id = (uint8_t)(*(conn_pos - 1) - '0');
+            }
             s_tcp_client_connected = true;
-            printf("[ESP32] TCP Client #%d connected!\r\n", cid);
+            printf("[ESP32] TCP Client #%d connected!\r\n", s_tcp_client_id);
             /* 不在此处提前 return，因为第一包数据可能紧跟在 CONNECT 后到达 */
         }
+        else if (strstr((char *)buf, "+LINK_CONN:") != NULL)
+        {
+            if (sscanf((char *)buf, "+LINK_CONN:%hhu", &cid) == 1)
+            {
+                s_tcp_client_id = cid;
+                s_tcp_client_connected = true;
+                printf("[ESP32] TCP Client #%d connected!\r\n", s_tcp_client_id);
+            }
+        }
 
-        /* 2. 检查客户端断开事件 */
-        if (sscanf((char *)buf, "%hhu,DISCONNECT", &cid) == 1 || strstr((char *)buf, "CLOSED") != NULL)
+        /* 2. 检查客户端断开事件: "<id>,CLOSED" 或 "CLOSED" */
+        char *closed_pos = strstr((char *)buf, ",CLOSED");
+        if (closed_pos != NULL || strstr((char *)buf, "CLOSED\r\n") != NULL)
         {
             s_tcp_client_connected = false;
             printf("[ESP32] TCP Client disconnected.\r\n");
@@ -599,7 +646,6 @@ static void ESP32_CheckClientEvent(void)
 bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, float roll)
 {
     char json[160];
-    char send_cmd[32];
     uint16_t json_len;
 
     if (!s_tcp_client_connected) return false;
@@ -607,17 +653,14 @@ bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, 
     snprintf(json, sizeof(json),
              "{\"temp\":%.1f,\"humi\":%.1f,\"steps\":%ld,\"pitch\":%.1f,\"roll\":%.1f}\r\n",
              temp, humi, (long)steps, pitch, roll);
-    json_len = strlen(json);
+    json_len = (uint16_t)strlen(json);
 
-    snprintf(send_cmd, sizeof(send_cmd), "AT+CIPSEND=%d,%d\r\n", s_tcp_client_id, json_len);
-    if (!ESP32_SendCmd(send_cmd, ">", 2000))
+    bool ok = ESP32_TCPSend(s_tcp_client_id, (const uint8_t *)json, json_len);
+    if (!ok)
     {
         s_tcp_client_connected = false;
-        return false;
     }
-
-    ESP32_SendRaw((const uint8_t *)json, json_len);
-    return ESP32_WaitSendAck(2000);
+    return ok;
 }
 
 bool ESP32_WiFi_IsOnline(void)

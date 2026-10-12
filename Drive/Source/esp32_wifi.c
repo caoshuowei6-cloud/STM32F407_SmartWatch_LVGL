@@ -8,6 +8,7 @@
 
 #include "esp32_wifi.h"
 #include "ota_manager.h"
+#include "cJSON.h"
 #include "aht20.h"
 #include "mpu6050.h"
 #include "FreeRTOS.h"
@@ -84,6 +85,12 @@ void ESP32_WiFi_Init(void)
     NVIC_InitTypeDef  NVIC_InitStructure;
     DMA_InitTypeDef   DMA_InitStructure;
     uint32_t wait_timeout;
+
+    /* 0. 接管 cJSON 内存管理，统一交由 FreeRTOS heap_4 进行碎片自动合并与隔离 */
+    cJSON_Hooks hooks;
+    hooks.malloc_fn = pvPortMalloc;
+    hooks.free_fn   = vPortFree;
+    cJSON_InitHooks(&hooks);
 
     /* 1. 创建 FreeRTOS 二值同步信号量 */
     if (s_wifi_sem == NULL)
@@ -637,6 +644,23 @@ static void ESP32_CheckClientEvent(void)
                             NVIC_SystemReset();
                         }
                     }
+                    else if (payload_len > 2 && payload[0] == '{')
+                    {
+                        /* 手机下行 JSON 远程控制指令动态解析 (cJSON 反序列化引擎) */
+                        cJSON *cmd_root = cJSON_Parse((const char *)payload);
+                        if (cmd_root != NULL)
+                        {
+                            cJSON *cmd_item = cJSON_GetObjectItem(cmd_root, "cmd");
+                            if (cmd_item && cJSON_IsString(cmd_item))
+                            {
+                                if (strcmp(cmd_item->valuestring, "ping") == 0)
+                                {
+                                    ESP32_SendTCPResponse((uint8_t)link_id, "{\"status\":\"pong\"}\r\n");
+                                }
+                            }
+                            cJSON_Delete(cmd_root);
+                        }
+                    }
                 }
             }
         }
@@ -645,17 +669,35 @@ static void ESP32_CheckClientEvent(void)
 
 bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, float roll)
 {
-    char json[160];
-    uint16_t json_len;
-
     if (!s_tcp_client_connected) return false;
 
-    snprintf(json, sizeof(json),
-             "{\"temp\":%.1f,\"humi\":%.1f,\"steps\":%ld,\"pitch\":%.1f,\"roll\":%.1f}\r\n",
-             temp, humi, (long)steps, pitch, roll);
-    json_len = (uint16_t)strlen(json);
+    /* 1. 动态创建 cJSON 根对象树 */
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return false;
 
-    bool ok = ESP32_TCPSend(s_tcp_client_id, (const uint8_t *)json, json_len);
+    /* 2. 结构化挂载传感器物模型属性 (保留1位小数) */
+    cJSON_AddNumberToObject(root, "temp",  (double)((int)(temp * 10)) / 10.0);
+    cJSON_AddNumberToObject(root, "humi",  (double)((int)(humi * 10)) / 10.0);
+    cJSON_AddNumberToObject(root, "steps", steps);
+    cJSON_AddNumberToObject(root, "pitch", (double)((int)(pitch * 10)) / 10.0);
+    cJSON_AddNumberToObject(root, "roll",  (double)((int)(roll * 10)) / 10.0);
+
+    /* 3. 序列化为压缩格式 JSON 文本行 */
+    char *json_str = cJSON_PrintUnformatted(root);
+    bool ok = false;
+    if (json_str)
+    {
+        char send_buf[192];
+        snprintf(send_buf, sizeof(send_buf), "%s\r\n", json_str);
+        ok = ESP32_TCPSend(s_tcp_client_id, (const uint8_t *)send_buf, (uint16_t)strlen(send_buf));
+
+        /* 4. 释放序列化字符串缓冲 (挂接 FreeRTOS 内存必须调用 vPortFree) */
+        vPortFree(json_str);
+    }
+
+    /* 5. 递归销毁 cJSON 树节点，严密杜绝任何内存泄漏 */
+    cJSON_Delete(root);
+
     if (!ok)
     {
         s_tcp_client_connected = false;

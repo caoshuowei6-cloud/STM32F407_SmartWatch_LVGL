@@ -509,6 +509,16 @@
               <FileType>1</FileType>
               <FilePath>..\Drive\Source\cJSON.c</FilePath>
             </File>
+            <File>
+              <FileName>cm_backtrace.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Drive\Source\cm_backtrace.c</FilePath>
+            </File>
+            <File>
+              <FileName>cmb_fault.S</FileName>
+              <FileType>2</FileType>
+              <FilePath>..\Drive\Source\cmb_fault.S</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

@@ -5402,3 +5402,34 @@ static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait,
     #endif
 
 #endif /* if ( configINCLUDE_FREERTOS_TASK_C_ADDITIONS_H == 1 ) */
+
+/* ============================================================================
+ * Support For CmBacktrace (Cortex Microcontroller Backtrace)
+ * ============================================================================ */
+uint32_t *vTaskStackAddr(void)
+{
+    if (pxCurrentTCB == NULL) {
+        return NULL;
+    }
+    return (uint32_t *)pxCurrentTCB->pxStack;
+}
+
+uint32_t vTaskStackSize(void)
+{
+    if (pxCurrentTCB == NULL) {
+        return 0;
+    }
+    #if ( ( portSTACK_GROWTH > 0 ) || ( configRECORD_STACK_HIGH_ADDRESS == 1 ) )
+    return (uint32_t)(pxCurrentTCB->pxEndOfStack - pxCurrentTCB->pxStack + 1);
+    #else
+    return 0;
+    #endif
+}
+
+char * vTaskName(void)
+{
+    if (pxCurrentTCB == NULL) {
+        return "NONE";
+    }
+    return (char *)pcTaskGetName(NULL);
+}

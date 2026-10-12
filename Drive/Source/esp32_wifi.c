@@ -657,6 +657,12 @@ static void ESP32_CheckClientEvent(void)
                                 {
                                     ESP32_SendTCPResponse((uint8_t)link_id, "{\"status\":\"pong\"}\r\n");
                                 }
+                                else if (strcmp(cmd_item->valuestring, "test_fault") == 0)
+                                {
+                                    printf("\r\n[Fault Test] Triggering intentional NULL pointer write to verify CmBacktrace...\r\n");
+                                    volatile uint32_t *p_bad = (volatile uint32_t *)0x00000000;
+                                    *p_bad = 0xDEADBEEF;
+                                }
                             }
                             cJSON_Delete(cmd_root);
                         }

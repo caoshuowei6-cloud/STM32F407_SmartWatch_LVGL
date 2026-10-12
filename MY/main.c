@@ -26,6 +26,7 @@
 #include "power_manager.h"
 #include "param_storage.h"
 #include "ota_manager.h"
+#include "cm_backtrace.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -271,7 +272,8 @@ int main(void)
     Delay_Init();       /* SysTick 1ms 初始化 (同时提供裸机启动期时基) */
     LED_Init();         /* PC13 绿灯 (低电平亮) */
     KEY_Init();         /* 按键初始化 (PB1, PA6, PA4, PA15) */
-    Usart_Config();     /* USART1 115200 8N1 */
+    Usart_Config();
+    cm_backtrace_init("STM32F407_SmartWatch", "V1.0", "V4.0_AES");     /* USART1 115200 8N1 */
 
     RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始化 (LSE/LSI 自动容错) */
     ADC_Battery_Init(); /* PA0 电池 12-bit ADC 初始化 */

@@ -10,11 +10,19 @@ set /p USER_IP="Target Watch IP [Enter for default %WATCH_IP%]: "
 if not "%USER_IP%"=="" set WATCH_IP=%USER_IP%
 
 echo.
-echo [*] Target Watch IP: %WATCH_IP%
-echo [*] Starting OTA push...
-echo.
+echo Select OTA Push Mode:
+echo   [1] AES-128-CBC Encrypted Mode (Default, High Security)
+echo   [2] Plaintext Mode (Legacy Compatibility)
+set /p OTA_MODE="Select mode [1 or 2, Enter for 1]: "
 
-python tools\ota_updater.py --ip %WATCH_IP%
+echo.
+if "%OTA_MODE%"=="2" (
+    echo [*] Pushing with Plaintext Compatibility Mode...
+    python tools\ota_updater.py --ip %WATCH_IP%
+) else (
+    echo [*] Pushing with Enterprise AES-128-CBC Encryption...
+    python tools\ota_updater.py --ip %WATCH_IP% --encrypt
+)
 
 echo.
 pause

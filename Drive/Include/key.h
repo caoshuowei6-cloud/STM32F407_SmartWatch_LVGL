@@ -4,10 +4,10 @@
 #include "stm32f4xx.h"
 
 /* 
- * 按键硬件与接口定义（与原 F1 手表工程逻辑完全一致）
+ * 按键硬件与接口定义
  * KEY1: PB1 (排针外接)
- * KEY2: PA6 (排针外接)
- * KEY3: PA4 (排针外接，支持短按和长按)
+ * KEY2: PC0 (原 PA6 腾出给硬件 SPI1_MISO)
+ * KEY3: PC1 (原 PA4 腾出给硬件 SPI1_CS，支持短按和长按)
  * KEY_BOARD: PA15 (核心板板载用户按键 SW1，兼作备用)
  */
 
@@ -15,13 +15,13 @@
 #define KEY1_PIN            GPIO_Pin_1
 #define KEY1_CLK            RCC_AHB1Periph_GPIOB
 
-#define KEY2_PORT           GPIOA
-#define KEY2_PIN            GPIO_Pin_6
-#define KEY2_CLK            RCC_AHB1Periph_GPIOA
+#define KEY2_PORT           GPIOC
+#define KEY2_PIN            GPIO_Pin_0
+#define KEY2_CLK            RCC_AHB1Periph_GPIOC
 
-#define KEY3_PORT           GPIOA
-#define KEY3_PIN            GPIO_Pin_4
-#define KEY3_CLK            RCC_AHB1Periph_GPIOA
+#define KEY3_PORT           GPIOC
+#define KEY3_PIN            GPIO_Pin_1
+#define KEY3_CLK            RCC_AHB1Periph_GPIOC
 
 #define KEY_BOARD_PORT      GPIOA
 #define KEY_BOARD_PIN       GPIO_Pin_15

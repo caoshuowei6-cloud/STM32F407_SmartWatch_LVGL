@@ -6,7 +6,7 @@
 
 /*----------------------USARTÅäÖÃºê ------------------------*/
 
-#define  USART1_BaudRate  115200
+#define  USART1_BaudRate  921600
 
 #define  USART1_TX_PIN				GPIO_Pin_9					// TX Òý½Å
 #define	USART1_TX_PORT				GPIOA							// TX Òý½Å¶Ë¿Ú

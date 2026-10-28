@@ -42,7 +42,7 @@
 /* --------------------------------------------------------------------
  * 钩子函数 (调试与��)
  * -------------------------------------------------------------------- */
-#define configUSE_IDLE_HOOK                     0
+#define configUSE_IDLE_HOOK                     1
 #define configUSE_TICK_HOOK                     0
 #define configCHECK_FOR_STACK_OVERFLOW          2
 #define configRECORD_STACK_HIGH_ADDRESS         1   /* For CmBacktrace */   /* 栈溢出深度�测模� 2 */

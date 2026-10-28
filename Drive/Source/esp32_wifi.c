@@ -584,16 +584,7 @@ static void ESP32_CheckClientEvent(void)
             }
         }
 
-        /* 2. 检查客户端断开事件: "<id>,CLOSED" 或 "CLOSED" */
-        char *closed_pos = strstr((char *)buf, ",CLOSED");
-        if (closed_pos != NULL || strstr((char *)buf, "CLOSED\r\n") != NULL)
-        {
-            s_tcp_client_connected = false;
-            printf("[ESP32] TCP Client disconnected.\r\n");
-            return;
-        }
-
-        /* 3. 检查 +IPD 传入数据流 (兼容标准模式与扩展信息模式) */
+        /* 2. 优先检查 +IPD 传入数据流 (防止断开事件与末包数据在同一 Buffer 导致提前 return 丢包) */
         char *ipd_pos = strstr((char *)buf, "+IPD,");
         if (ipd_pos != NULL)
         {
@@ -657,11 +648,15 @@ static void ESP32_CheckClientEvent(void)
                                 {
                                     ESP32_SendTCPResponse((uint8_t)link_id, "{\"status\":\"pong\"}\r\n");
                                 }
-                                else if (strcmp(cmd_item->valuestring, "test_fault") == 0)
+                                else if (strcmp(cmd_item->valuestring, "test_fault") == 0 ||
+                                         strcmp(cmd_item->valuestring, "test_wild") == 0)
                                 {
-                                    printf("\r\n[Fault Test] Triggering intentional NULL pointer write to verify CmBacktrace...\r\n");
-                                    volatile uint32_t *p_bad = (volatile uint32_t *)0x00000000;
-                                    *p_bad = 0xDEADBEEF;
+                                    printf("\r\n[Fault Test] Enabling DIV_0_TRP trap and triggering Divide-by-Zero (100 / 0)...\r\n");
+                                    SCB->CCR |= SCB_CCR_DIV_0_TRP_Msk; /* 开启 Cortex-M4 硬件除零异常陷阱 */
+                                    volatile int num = 100;
+                                    volatile int den = 0;
+                                    volatile int res = num / den;
+                                    (void)res;
                                 }
                             }
                             cJSON_Delete(cmd_root);
@@ -669,6 +664,15 @@ static void ESP32_CheckClientEvent(void)
                     }
                 }
             }
+        }
+
+        /* 3. 检查客户端断开事件: "<id>,CLOSED" 或 "CLOSED" */
+        char *closed_pos = strstr((char *)buf, ",CLOSED");
+        if (closed_pos != NULL || strstr((char *)buf, "CLOSED\r\n") != NULL)
+        {
+            s_tcp_client_connected = false;
+            printf("[ESP32] TCP Client disconnected.\r\n");
+            return;
         }
     }
 }

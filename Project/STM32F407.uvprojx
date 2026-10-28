@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<?xml version='1.0' encoding='utf-8'?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
 
   <SchemaVersion>2.1</SchemaVersion>
@@ -19,28 +19,28 @@
           <PackID>Keil.STM32F4xx_DFP.3.1.1</PackID>
           <PackURL>https://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000,0x20000) IRAM2(0x10000000,0x10000) IROM(0x08000000,0x100000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
-          <FlashUtilSpec></FlashUtilSpec>
-          <StartupFile></StartupFile>
+          <FlashUtilSpec />
+          <StartupFile />
           <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0STM32F4xx_1024 -FS08000000 -FL0100000 -FP0($$Device:STM32F407ZGTx$CMSIS\Flash\STM32F4xx_1024.FLM))</FlashDriverDll>
           <DeviceId>0</DeviceId>
           <RegisterFile>$$Device:STM32F407ZGTx$Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h</RegisterFile>
-          <MemoryEnv></MemoryEnv>
-          <Cmp></Cmp>
-          <Asm></Asm>
-          <Linker></Linker>
-          <OHString></OHString>
-          <InfinionOptionDll></InfinionOptionDll>
-          <SLE66CMisc></SLE66CMisc>
-          <SLE66AMisc></SLE66AMisc>
-          <SLE66LinkerMisc></SLE66LinkerMisc>
+          <MemoryEnv />
+          <Cmp />
+          <Asm />
+          <Linker />
+          <OHString />
+          <InfinionOptionDll />
+          <SLE66CMisc />
+          <SLE66AMisc />
+          <SLE66LinkerMisc />
           <SFDFile>$$Device:STM32F407ZGTx$CMSIS\SVD\STM32F40x.svd</SFDFile>
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
-          <BinPath></BinPath>
-          <IncludePath></IncludePath>
-          <LibPath></LibPath>
-          <RegisterFilePath></RegisterFilePath>
-          <DBRegisterFilePath></DBRegisterFilePath>
+          <BinPath />
+          <IncludePath />
+          <LibPath />
+          <RegisterFilePath />
+          <DBRegisterFilePath />
           <TargetStatus>
             <Error>0</Error>
             <ExitCodeStop>0</ExitCodeStop>
@@ -62,8 +62,8 @@
           <BeforeCompile>
             <RunUserProg1>0</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
-            <UserProg2Name></UserProg2Name>
+            <UserProg1Name />
+            <UserProg2Name />
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopU1X>0</nStopU1X>
@@ -72,8 +72,8 @@
           <BeforeMake>
             <RunUserProg1>0</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name></UserProg1Name>
-            <UserProg2Name></UserProg2Name>
+            <UserProg1Name />
+            <UserProg2Name />
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopB1X>0</nStopB1X>
@@ -83,14 +83,14 @@
             <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
             <UserProg1Name>fromelf.exe --bin -o "$L@L.bin" "#L"</UserProg1Name>
-            <UserProg2Name></UserProg2Name>
+            <UserProg2Name />
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
             <nStopA2X>0</nStopA2X>
           </AfterMake>
           <SelectedForBatchBuild>0</SelectedForBatchBuild>
-          <SVCSIdString></SVCSIdString>
+          <SVCSIdString />
         </TargetCommonOption>
         <CommonProperty>
           <UseCPPCompiler>0</UseCPPCompiler>
@@ -104,8 +104,8 @@
           <AssembleAssemblyFile>0</AssembleAssemblyFile>
           <PublicsOnly>0</PublicsOnly>
           <StopOnExitCode>3</StopOnExitCode>
-          <CustomArgument></CustomArgument>
-          <IncludeLibraryModules></IncludeLibraryModules>
+          <CustomArgument />
+          <IncludeLibraryModules />
           <ComprImg>1</ComprImg>
         </CommonProperty>
         <DllOption>
@@ -139,10 +139,10 @@
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
           <Flash3>"" ()</Flash3>
-          <Flash4></Flash4>
-          <pFcarmOut></pFcarmOut>
-          <pFcarmGrp></pFcarmGrp>
-          <pFcArmRoot></pFcArmRoot>
+          <Flash4 />
+          <pFcarmOut />
+          <pFcarmGrp />
+          <pFcArmRoot />
           <FcArmLst>0</FcArmLst>
         </Utilities>
         <TargetArmAds>
@@ -175,7 +175,7 @@
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
             <AdsCpuType>"Cortex-M4"</AdsCpuType>
-            <RvctDeviceName></RvctDeviceName>
+            <RvctDeviceName />
             <mOS>0</mOS>
             <uocRom>0</uocRom>
             <uocRam>0</uocRam>
@@ -310,7 +310,7 @@
                 <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
-            <RvctStartVector></RvctStartVector>
+            <RvctStartVector />
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
@@ -337,10 +337,10 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls></MiscControls>
+              <MiscControls />
               <Define>USE_STDPERIPH_DRIVER,STM32F40_41xxx,LV_LVGL_H_INCLUDE_SIMPLE,LV_CONF_INCLUDE_SIMPLE,VECT_TAB_OFFSET=0x20000</Define>
-              <Undefine></Undefine>
-              <IncludePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Include;..\STM32\CMSIS\Include;..\STM32\STM32F4xx_StdPeriph_Driver\inc;..\MY;..\Drive\Include;..\lvgl;..\lvgl\porting;..\freertos\include;..\freertos\portable</IncludePath>
+              <Undefine />
+              <IncludePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Include;..\STM32\CMSIS\Include;..\STM32\STM32F4xx_StdPeriph_Driver\inc;..\App\Include;..\Service\Include;..\Driver\Include;..\BSP\Include;..\Middleware\Include;..\Middleware\Include\Languages\zh-CN;..\Middleware\Include\Languages\en-US;..\lvgl;..\lvgl\porting;..\freertos\include;..\freertos\portable</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -355,10 +355,10 @@
             <useXO>0</useXO>
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
-              <MiscControls></MiscControls>
-              <Define></Define>
-              <Undefine></Undefine>
-              <IncludePath></IncludePath>
+              <MiscControls />
+              <Define />
+              <Undefine />
+              <IncludePath />
             </VariousControls>
           </Aads>
           <LDads>
@@ -370,198 +370,18 @@
             <useFile>1</useFile>
             <TextAddressRange>0x08020000</TextAddressRange>
             <DataAddressRange>0x20000000</DataAddressRange>
-            <pXoBase></pXoBase>
+            <pXoBase />
             <ScatterFile>.\STM32F407_APP.sct</ScatterFile>
-            <IncludeLibs></IncludeLibs>
-            <IncludeLibsPath></IncludeLibsPath>
-            <Misc></Misc>
-            <LinkerInputFile></LinkerInputFile>
-            <DisabledWarnings></DisabledWarnings>
+            <IncludeLibs />
+            <IncludeLibsPath />
+            <Misc />
+            <LinkerInputFile />
+            <DisabledWarnings />
           </LDads>
         </TargetArmAds>
       </TargetOption>
       <Groups>
-        <Group>
-          <GroupName>MY</GroupName>
-          <Files>
-            <File>
-              <FileName>main.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MY\main.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_it.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\MY\stm32f4xx_it.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_conf.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\MY\stm32f4xx_conf.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>BSP</GroupName>
-          <Files>
-            <File>
-              <FileName>led.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\led.c</FilePath>
-            </File>
-            <File>
-              <FileName>delay.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\delay.c</FilePath>
-            </File>
-            <File>
-              <FileName>key.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\key.c</FilePath>
-            </File>
-            <File>
-              <FileName>usart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\usart.c</FilePath>
-            </File>
-            <File>
-              <FileName>lcd_fonts.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\lcd_fonts.c</FilePath>
-            </File>
-            <File>
-              <FileName>lcd_image.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\lcd_image.c</FilePath>
-            </File>
-            <File>
-              <FileName>lcd_spi_154.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\lcd_spi_154.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtc_f407.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\rtc_f407.c</FilePath>
-            </File>
-            <File>
-              <FileName>adc_battery.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\adc_battery.c</FilePath>
-            </File>
-            <File>
-              <FileName>aht20.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\aht20.c</FilePath>
-            </File>
-            <File>
-              <FileName>mpu6050.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\mpu6050.c</FilePath>
-            </File>
-            <File>
-              <FileName>rtc_f407.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Drive\Include\rtc_f407.h</FilePath>
-            </File>
-            <File>
-              <FileName>adc_battery.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Drive\Include\adc_battery.h</FilePath>
-            </File>
-            <File>
-              <FileName>aht20.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Drive\Include\aht20.h</FilePath>
-            </File>
-            <File>
-              <FileName>mpu6050.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Drive\Include\mpu6050.h</FilePath>
-            </File>
-            <File>
-              <FileName>esp32_wifi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\esp32_wifi.c</FilePath>
-            </File>
-            <File>
-              <FileName>power_manager.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\power_manager.c</FilePath>
-            </File>
-            <File>
-              <FileName>param_storage.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\param_storage.c</FilePath>
-            </File>
-            <File>
-              <FileName>ota_manager.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ota_manager.c</FilePath>
-            </File>
-            <File>
-              <FileName>aes.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\aes.c</FilePath>
-            </File>
-            <File>
-              <FileName>cJSON.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\cJSON.c</FilePath>
-            </File>
-            <File>
-              <FileName>cm_backtrace.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\cm_backtrace.c</FilePath>
-            </File>
-            <File>
-              <FileName>cmb_fault.S</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\Drive\Source\cmb_fault.S</FilePath>
-            </File>
-            <File>
-              <FileName>w25qxx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\w25qxx.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>UI</GroupName>
-          <Files>
-            <File>
-              <FileName>ui_watch.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ui_watch.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_page_clock.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ui_page_clock.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_page_menu.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ui_page_menu.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_page_apps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ui_page_apps.c</FilePath>
-            </File>
-            <File>
-              <FileName>ui_watch.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Drive\Include\ui_watch.h</FilePath>
-            </File>
-            <File>
-              <FileName>ui_page_settime.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Drive\Source\ui_page_settime.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
+        <Group><GroupName>1_App</GroupName><Files><File><FileName>main.c</FileName><FileType>1</FileType><FilePath>..\App\Source\main.c</FilePath></File><File><FileName>stm32f4xx_it.c</FileName><FileType>1</FileType><FilePath>..\App\Source\stm32f4xx_it.c</FilePath></File><File><FileName>stm32f4xx_conf.h</FileName><FileType>5</FileType><FilePath>..\App\Include\stm32f4xx_conf.h</FilePath></File><File><FileName>ui_watch.c</FileName><FileType>1</FileType><FilePath>..\App\Source\ui_watch.c</FilePath></File><File><FileName>ui_page_clock.c</FileName><FileType>1</FileType><FilePath>..\App\Source\ui_page_clock.c</FilePath></File><File><FileName>ui_page_menu.c</FileName><FileType>1</FileType><FilePath>..\App\Source\ui_page_menu.c</FilePath></File><File><FileName>ui_page_apps.c</FileName><FileType>1</FileType><FilePath>..\App\Source\ui_page_apps.c</FilePath></File><File><FileName>ui_page_settime.c</FileName><FileType>1</FileType><FilePath>..\App\Source\ui_page_settime.c</FilePath></File></Files></Group><Group><GroupName>2_Service</GroupName><Files><File><FileName>power_manager.c</FileName><FileType>1</FileType><FilePath>..\Service\Source\power_manager.c</FilePath></File><File><FileName>param_storage.c</FileName><FileType>1</FileType><FilePath>..\Service\Source\param_storage.c</FilePath></File><File><FileName>ota_manager.c</FileName><FileType>1</FileType><FilePath>..\Service\Source\ota_manager.c</FilePath></File><File><FileName>esp32_wifi.c</FileName><FileType>1</FileType><FilePath>..\Service\Source\esp32_wifi.c</FilePath></File><File><FileName>rtc_f407.c</FileName><FileType>1</FileType><FilePath>..\Service\Source\rtc_f407.c</FilePath></File></Files></Group><Group><GroupName>3_Driver</GroupName><Files><File><FileName>lcd_spi_154.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\lcd_spi_154.c</FilePath></File><File><FileName>lcd_fonts.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\lcd_fonts.c</FilePath></File><File><FileName>lcd_image.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\lcd_image.c</FilePath></File><File><FileName>w25qxx.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\w25qxx.c</FilePath></File><File><FileName>mpu6050.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\mpu6050.c</FilePath></File><File><FileName>aht20.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\aht20.c</FilePath></File><File><FileName>adc_battery.c</FileName><FileType>1</FileType><FilePath>..\Driver\Source\adc_battery.c</FilePath></File></Files></Group><Group><GroupName>4_BSP</GroupName><Files><File><FileName>delay.c</FileName><FileType>1</FileType><FilePath>..\BSP\Source\delay.c</FilePath></File><File><FileName>usart.c</FileName><FileType>1</FileType><FilePath>..\BSP\Source\usart.c</FilePath></File><File><FileName>key.c</FileName><FileType>1</FileType><FilePath>..\BSP\Source\key.c</FilePath></File><File><FileName>led.c</FileName><FileType>1</FileType><FilePath>..\BSP\Source\led.c</FilePath></File></Files></Group><Group><GroupName>5_Middleware</GroupName><Files><File><FileName>cJSON.c</FileName><FileType>1</FileType><FilePath>..\Middleware\Source\cJSON.c</FilePath></File><File><FileName>aes.c</FileName><FileType>1</FileType><FilePath>..\Middleware\Source\aes.c</FilePath></File><File><FileName>cm_backtrace.c</FileName><FileType>1</FileType><FilePath>..\Middleware\Source\cm_backtrace.c</FilePath></File><File><FileName>cmb_fault.S</FileName><FileType>2</FileType><FilePath>..\Middleware\Source\cmb_fault.S</FilePath></File></Files></Group><Group>
           <GroupName>STM32</GroupName>
           <Files>
             <File>
@@ -4636,9 +4456,9 @@
   </Targets>
 
   <RTE>
-    <apis/>
-    <components/>
-    <files/>
+    <apis />
+    <components />
+    <files />
   </RTE>
 
   <LayerInfo>

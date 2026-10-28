@@ -6,17 +6,19 @@
   */
 
 #include "aht20.h"
+#include "bsp_board.h"
 #include "delay.h"
+#include "lvgl.h"
 #include <stdio.h>
 
 #define AHT20_ADDR_WRITE  0x70
 #define AHT20_ADDR_READ   0x71
 
-#define AHT_SCL_H()       GPIO_SetBits(GPIOB, GPIO_Pin_6)
-#define AHT_SCL_L()       GPIO_ResetBits(GPIOB, GPIO_Pin_6)
-#define AHT_SDA_H()       GPIO_SetBits(GPIOB, GPIO_Pin_7)
-#define AHT_SDA_L()       GPIO_ResetBits(GPIOB, GPIO_Pin_7)
-#define AHT_SDA_READ()    GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_7)
+#define AHT_SCL_H()       GPIO_SetBits(BOARD_AHT_I2C_PORT, BOARD_AHT_I2C_SCL_PIN)
+#define AHT_SCL_L()       GPIO_ResetBits(BOARD_AHT_I2C_PORT, BOARD_AHT_I2C_SCL_PIN)
+#define AHT_SDA_H()       GPIO_SetBits(BOARD_AHT_I2C_PORT, BOARD_AHT_I2C_SDA_PIN)
+#define AHT_SDA_L()       GPIO_ResetBits(BOARD_AHT_I2C_PORT, BOARD_AHT_I2C_SDA_PIN)
+#define AHT_SDA_READ()    GPIO_ReadInputDataBit(BOARD_AHT_I2C_PORT, BOARD_AHT_I2C_SDA_PIN)
 
 static float s_last_temp = 25.0f;
 static float s_last_humi = 50.0f;
@@ -115,15 +117,15 @@ bool AHT20_Init(void)
     GPIO_InitTypeDef GPIO_InitStructure;
     uint8_t status;
 
-    /* 1. 初始化 GPIOB 时钟与引脚 PB6(SCL), PB7(SDA) 开漏输出上拉 */
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    /* 1. 初始化板级温湿度传感器 I2C 引脚 开漏输出上拉 */
+    RCC_AHB1PeriphClockCmd(BOARD_AHT_I2C_CLK, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Pin   = BOARD_AHT_I2C_SCL_PIN | BOARD_AHT_I2C_SDA_PIN;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
     GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIO_Init(BOARD_AHT_I2C_PORT, &GPIO_InitStructure);
 
     AHT_SCL_H();
     AHT_SDA_H();

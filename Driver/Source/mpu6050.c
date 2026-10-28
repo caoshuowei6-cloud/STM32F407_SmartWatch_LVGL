@@ -6,6 +6,7 @@
   */
 
 #include "mpu6050.h"
+#include "bsp_board.h"
 #include "delay.h"
 #include "lvgl.h"
 #include <stdio.h>
@@ -30,26 +31,26 @@ static uint32_t s_step_count = 0;
 static int16_t  s_raw_ax = 0, s_raw_ay = 0, s_raw_az = 0;
 static int16_t  s_raw_gx = 0, s_raw_gy = 0, s_raw_gz = 0;
 
-/* ---------------- 模拟 I2C 底层时序 (PF1=SCL, PF0=SDA) ---------------- */
-/* 采用标准江科大/F1 经久验证的时序架构，微秒级延时确保杜邦线与上拉电平可靠爬升 */
+/* ---------------- 模拟 I2C 底层时序 (引脚映射依托 bsp_board.h 解耦) ---------------- */
+/* 采用标准经久验证的时序架构，微秒级延时确保杜邦线与上拉电平可靠爬升 */
 
 static void MPU_I2C_W_SCL(uint8_t bit)
 {
-    if (bit) GPIO_SetBits(GPIOF, GPIO_Pin_1);
-    else     GPIO_ResetBits(GPIOF, GPIO_Pin_1);
+    if (bit) GPIO_SetBits(BOARD_MPU_I2C_PORT, BOARD_MPU_I2C_SCL_PIN);
+    else     GPIO_ResetBits(BOARD_MPU_I2C_PORT, BOARD_MPU_I2C_SCL_PIN);
     Delay_us(5);
 }
 
 static void MPU_I2C_W_SDA(uint8_t bit)
 {
-    if (bit) GPIO_SetBits(GPIOF, GPIO_Pin_0);
-    else     GPIO_ResetBits(GPIOF, GPIO_Pin_0);
+    if (bit) GPIO_SetBits(BOARD_MPU_I2C_PORT, BOARD_MPU_I2C_SDA_PIN);
+    else     GPIO_ResetBits(BOARD_MPU_I2C_PORT, BOARD_MPU_I2C_SDA_PIN);
     Delay_us(5);
 }
 
 static uint8_t MPU_I2C_R_SDA(void)
 {
-    uint8_t bit = GPIO_ReadInputDataBit(GPIOF, GPIO_Pin_0);
+    uint8_t bit = GPIO_ReadInputDataBit(BOARD_MPU_I2C_PORT, BOARD_MPU_I2C_SDA_PIN);
     Delay_us(5);
     return bit;
 }
@@ -160,14 +161,15 @@ bool MPU6050_Init(void)
     uint8_t who;
 
     /* 1. 初始化 GPIOF PF0(SDA), PF1(SCL) 开漏输出上拉 */
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
+    /* 1. 初始化板级定义 GPIO SCL/SDA 开漏上拉 */
+    RCC_AHB1PeriphClockCmd(BOARD_MPU_I2C_CLK, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_0 | GPIO_Pin_1;
+    GPIO_InitStructure.GPIO_Pin   = BOARD_MPU_I2C_SCL_PIN | BOARD_MPU_I2C_SDA_PIN;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_OUT;
     GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOF, &GPIO_InitStructure);
+    GPIO_Init(BOARD_MPU_I2C_PORT, &GPIO_InitStructure);
 
     MPU_I2C_W_SCL(1);
     MPU_I2C_W_SDA(1);

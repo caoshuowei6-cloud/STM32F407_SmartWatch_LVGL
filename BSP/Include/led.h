@@ -1,24 +1,27 @@
+/**
+  ******************************************************************************
+  * @file    led.h
+  * @brief   STM32F407 板载 LED 驱动配置头文件
+  ******************************************************************************
+  */
+
 #ifndef __LED_H
 #define __LED_H
 
 #include "stm32f4xx.h"
+#include "bsp_board.h"
 
-/*---------------------- LED 引脚宏 ------------------------*/
+/* 引脚映射至 bsp_board.h */
+#define LED1_PIN             BOARD_LED_PIN
+#define LED1_PORT            BOARD_LED_PORT
+#define LED1_CLK             BOARD_LED_CLK
 
-#define LED1_PIN             GPIO_Pin_13       		 // LED1 引脚 (板载绿灯)
-#define LED1_PORT            GPIOC                   // LED1 GPIO 端口     
-#define LED1_CLK             RCC_AHB1Periph_GPIOC	 // LED1 GPIO 时钟
+/* 控制宏定义 */
+#define LED1_ON              GPIO_ResetBits(LED1_PORT, LED1_PIN)
+#define LED1_OFF             GPIO_SetBits(LED1_PORT, LED1_PIN)
+#define LED1_Toggle          GPIO_ToggleBits(LED1_PORT, LED1_PIN)
+#define LED_Toggle           GPIO_ToggleBits(LED1_PORT, LED1_PIN)
 
-/*---------------------- LED 控制宏 ------------------------*/
-					
-#define LED1_ON 	    GPIO_ResetBits(LED1_PORT, LED1_PIN)			// 低电平点亮 LED1	
-#define LED1_OFF 	    GPIO_SetBits(LED1_PORT, LED1_PIN)			// 高电平熄灭 LED1	
-#define LED1_Toggle	    GPIO_ToggleBits(LED1_PORT, LED1_PIN)		// LED1 状态翻转
+void LED_Init(void);
 
-#define LED_Toggle      GPIO_ToggleBits(LED1_PORT, LED1_PIN)        // 兼容 LED_Toggle() 和 LED_Toggle 调用
-
-/*---------------------- 函数声明 ----------------------------*/
-
-void LED_Init(void);	// LED 初始化
-
-#endif // __LED_H
+#endif /* __LED_H */

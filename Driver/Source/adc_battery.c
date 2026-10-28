@@ -6,12 +6,13 @@
   */
 
 #include "adc_battery.h"
+#include "bsp_board.h"
 #include "stm32f4xx_adc.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_gpio.h"
 
 /**
-  * @brief  初始化 PA0 为 ADC1_IN0 模拟输入
+  * @brief  初始化板级电池采样 ADC (ADC1_IN0 / PA0 模拟输入)
   */
 void ADC_Battery_Init(void)
 {
@@ -19,15 +20,15 @@ void ADC_Battery_Init(void)
     ADC_InitTypeDef        ADC_InitStructure;
     ADC_CommonInitTypeDef  ADC_CommonInitStructure;
 
-    /* 1. 使能 GPIOA 与 ADC1 时钟 */
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+    /* 1. 使能 GPIO 与 ADC 时钟 */
+    RCC_AHB1PeriphClockCmd(BOARD_BAT_GPIO_CLK, ENABLE);
+    RCC_APB2PeriphClockCmd(BOARD_BAT_ADC_CLK, ENABLE);
 
-    /* 2. 配置 PA0 为模拟输入 (AIN) */
-    GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_0;
+    /* 2. 配置引脚为模拟输入 (AIN) */
+    GPIO_InitStructure.GPIO_Pin  = BOARD_BAT_PIN;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_Init(BOARD_BAT_PORT, &GPIO_InitStructure);
 
     /* 3. 配置 ADC 通用参数 (独立模式, 4分频 = 84MHz/4 = 21MHz) */
     ADC_CommonInitStructure.ADC_Mode             = ADC_Mode_Independent;
@@ -36,7 +37,7 @@ void ADC_Battery_Init(void)
     ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
     ADC_CommonInit(&ADC_CommonInitStructure);
 
-    /* 4. 配置 ADC1 参数 (12位分辨率, 单次转换) */
+    /* 4. 配置 ADC 参数 (12位分辨率, 单次转换) */
     ADC_InitStructure.ADC_Resolution           = ADC_Resolution_12b;
     ADC_InitStructure.ADC_ScanConvMode         = DISABLE;
     ADC_InitStructure.ADC_ContinuousConvMode   = DISABLE;
@@ -44,10 +45,10 @@ void ADC_Battery_Init(void)
     ADC_InitStructure.ADC_ExternalTrigConv     = ADC_ExternalTrigConv_T1_CC1;
     ADC_InitStructure.ADC_DataAlign            = ADC_DataAlign_Right;
     ADC_InitStructure.ADC_NbrOfConversion      = 1;
-    ADC_Init(ADC1, &ADC_InitStructure);
+    ADC_Init(BOARD_BAT_ADC, &ADC_InitStructure);
 
-    /* 5. 使能 ADC1 */
-    ADC_Cmd(ADC1, ENABLE);
+    /* 5. 使能 ADC */
+    ADC_Cmd(BOARD_BAT_ADC, ENABLE);
 }
 
 /**
@@ -58,18 +59,18 @@ uint16_t ADC_Battery_GetRaw(void)
     uint32_t timeout = 10000;
 
     /* 配置通道 0 采样周期 56周期 */
-    ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_56Cycles);
+    ADC_RegularChannelConfig(BOARD_BAT_ADC, BOARD_BAT_ADC_CHANNEL, 1, ADC_SampleTime_56Cycles);
 
     /* 软件触发转换 */
-    ADC_SoftwareStartConv(ADC1);
+    ADC_SoftwareStartConv(BOARD_BAT_ADC);
 
     /* 等待转换完成 */
-    while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET && timeout > 0)
+    while (ADC_GetFlagStatus(BOARD_BAT_ADC, ADC_FLAG_EOC) == RESET && timeout > 0)
     {
         timeout--;
     }
 
-    return ADC_GetConversionValue(ADC1);
+    return ADC_GetConversionValue(BOARD_BAT_ADC);
 }
 
 /**

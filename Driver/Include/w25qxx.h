@@ -9,6 +9,7 @@
 #define __W25QXX_H
 
 #include "stm32f4xx.h"
+#include "bsp_board.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -21,22 +22,22 @@
 #define W25QXX_BLOCK_SIZE       65536       /* 1 块 = 65536 字节 (64KB) */
 #define W25QXX_FLASH_SIZE       0x800000    /* 8M 字节 (64Mbit) */
 
-/* 硬件引脚定义: 硬件 SPI1 (PA4: CS, PA5: SCK, PA6: MISO, PA7: MOSI) */
-#define W25QXX_CS_PORT          GPIOA
-#define W25QXX_CS_PIN           GPIO_Pin_4
-#define W25QXX_CS_CLK           RCC_AHB1Periph_GPIOA
+/* 硬件引脚定义: 统一映射至 bsp_board.h */
+#define W25QXX_CS_PORT          BOARD_FLASH_PORT
+#define W25QXX_CS_PIN           BOARD_FLASH_CS_PIN
+#define W25QXX_CS_CLK           BOARD_FLASH_GPIO_CLK
 
-#define W25QXX_SPI              SPI1
-#define W25QXX_SPI_CLK          RCC_APB2Periph_SPI1
-#define W25QXX_SPI_PORT         GPIOA
-#define W25QXX_SPI_PORT_CLK     RCC_AHB1Periph_GPIOA
-#define W25QXX_PIN_SCK          GPIO_Pin_5
-#define W25QXX_PIN_MISO         GPIO_Pin_6
-#define W25QXX_PIN_MOSI         GPIO_Pin_7
-#define W25QXX_PIN_SOURCE_SCK   GPIO_PinSource5
-#define W25QXX_PIN_SOURCE_MISO  GPIO_PinSource6
-#define W25QXX_PIN_SOURCE_MOSI  GPIO_PinSource7
-#define W25QXX_AF_SPI           GPIO_AF_SPI1
+#define W25QXX_SPI              BOARD_FLASH_SPI
+#define W25QXX_SPI_CLK          BOARD_FLASH_SPI_CLK
+#define W25QXX_SPI_PORT         BOARD_FLASH_PORT
+#define W25QXX_SPI_PORT_CLK     BOARD_FLASH_GPIO_CLK
+#define W25QXX_PIN_SCK          BOARD_FLASH_SCK_PIN
+#define W25QXX_PIN_MISO         BOARD_FLASH_MISO_PIN
+#define W25QXX_PIN_MOSI         BOARD_FLASH_MOSI_PIN
+#define W25QXX_PIN_SOURCE_SCK   BOARD_FLASH_SCK_SRC
+#define W25QXX_PIN_SOURCE_MISO  BOARD_FLASH_MISO_SRC
+#define W25QXX_PIN_SOURCE_MOSI  BOARD_FLASH_MOSI_SRC
+#define W25QXX_AF_SPI           BOARD_FLASH_SPI_AF
 
 /* 片选控制宏 */
 #define W25QXX_CS_LOW()         GPIO_ResetBits(W25QXX_CS_PORT, W25QXX_CS_PIN)

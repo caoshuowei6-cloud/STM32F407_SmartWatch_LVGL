@@ -45,6 +45,7 @@ bool ESP32_SendCmdEx(const char * cmd, const char * expected_ack, uint32_t timeo
 bool ESP32_ConnectAP(const char * ssid, const char * pwd);
 bool ESP32_SyncNTPTime(void);
 bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, float roll);
+uint32_t ESP32_WiFi_GetOverflowCount(void);
 
 /* FreeRTOS 后台任务定期轮询状态机 */
 void ESP32_WiFi_TaskLoop(void);

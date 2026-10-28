@@ -7,6 +7,8 @@
   */
 
 #include "esp32_wifi.h"
+#include "bsp_board.h"
+#include "bsp_ringbuffer.h"
 #include "ota_manager.h"
 #include "cJSON.h"
 #include "aht20.h"
@@ -20,11 +22,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* DMA 硬件接收缓冲区与软件环形队列 */
-static uint8_t  s_dma_rx_buf[ESP32_RX_DMA_BUF_SIZE];
-static uint8_t  s_ring_buf[ESP32_RING_BUF_SIZE];
-static volatile uint16_t s_ring_head = 0;
-static volatile uint16_t s_ring_tail = 0;
+/* DMA 硬件接收缓冲区与软件环形队列 (基于工业级 RingBuffer 引擎) */
+static uint8_t       s_dma_rx_buf[ESP32_RX_DMA_BUF_SIZE];
+static uint8_t       s_ring_buf[ESP32_RING_BUF_SIZE];
+static ring_buffer_t s_wifi_rb;
 
 /* FreeRTOS 同步原语与状态记录 */
 static SemaphoreHandle_t s_wifi_sem = NULL;
@@ -35,44 +36,11 @@ static uint8_t s_tcp_client_id = 0;
 static bool s_tcp_client_connected = false;
 
 /* ============================================================================
-   环形缓冲区核心操作 (线程安全削峰 FIFO)
+   丢包与通信质量指标获取
    ============================================================================ */
-static void RingBuffer_Write(const uint8_t * data, uint16_t len)
+uint32_t ESP32_WiFi_GetOverflowCount(void)
 {
-    uint16_t i;
-    for (i = 0; i < len; i++)
-    {
-        uint16_t next_head = (s_ring_head + 1) % ESP32_RING_BUF_SIZE;
-        if (next_head != s_ring_tail)
-        {
-            s_ring_buf[s_ring_head] = data[i];
-            s_ring_head = next_head;
-        }
-        else
-        {
-            /* 满载丢弃旧字节，保障最新网络报文 */
-            s_ring_tail = (s_ring_tail + 1) % ESP32_RING_BUF_SIZE;
-            s_ring_buf[s_ring_head] = data[i];
-            s_ring_head = next_head;
-        }
-    }
-}
-
-static uint16_t RingBuffer_Read(uint8_t * out_buf, uint16_t max_len)
-{
-    uint16_t count = 0;
-    while ((s_ring_head != s_ring_tail) && (count < max_len))
-    {
-        out_buf[count++] = s_ring_buf[s_ring_tail];
-        s_ring_tail = (s_ring_tail + 1) % ESP32_RING_BUF_SIZE;
-    }
-    return count;
-}
-
-static void RingBuffer_Clear(void)
-{
-    s_ring_head = 0;
-    s_ring_tail = 0;
+    return RingBuffer_GetOverflow(&s_wifi_rb);
 }
 
 /* ============================================================================
@@ -92,57 +60,60 @@ void ESP32_WiFi_Init(void)
     hooks.free_fn   = vPortFree;
     cJSON_InitHooks(&hooks);
 
-    /* 1. 创建 FreeRTOS 二值同步信号量 */
+    /* 1. 初始化环形缓冲区 */
+    RingBuffer_Init(&s_wifi_rb, s_ring_buf, sizeof(s_ring_buf));
+
+    /* 2. 创建 FreeRTOS 二值同步信号量 */
     if (s_wifi_sem == NULL)
     {
         s_wifi_sem = xSemaphoreCreateBinary();
     }
 
-    /* 2. 开启 GPIOA, USART2, DMA1 外设时钟 */
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2, ENABLE);
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
+    /* 3. 开启 GPIO, USART, DMA 外设时钟 */
+    RCC_AHB1PeriphClockCmd(BOARD_WIFI_USART_GPIO_CLK, ENABLE);
+    RCC_APB1PeriphClockCmd(BOARD_WIFI_USART_CLK, ENABLE);
+    RCC_AHB1PeriphClockCmd(BOARD_WIFI_USART_DMA_CLK, ENABLE);
 
-    /* 3. 配置 PA2(TX) 和 PA3(RX) 复用为 AF7 (USART2) */
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource2, GPIO_AF_USART2);
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource3, GPIO_AF_USART2);
+    /* 4. 配置 TX 和 RX 引脚复用为 USART */
+    GPIO_PinAFConfig(BOARD_WIFI_USART_PORT, BOARD_WIFI_USART_TX_SRC, BOARD_WIFI_USART_AF);
+    GPIO_PinAFConfig(BOARD_WIFI_USART_PORT, BOARD_WIFI_USART_RX_SRC, BOARD_WIFI_USART_AF);
 
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_2 | GPIO_Pin_3;
+    GPIO_InitStructure.GPIO_Pin   = BOARD_WIFI_USART_TX_PIN | BOARD_WIFI_USART_RX_PIN;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF;
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
     GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_Init(BOARD_WIFI_USART_PORT, &GPIO_InitStructure);
 
-    /* 4. 配置 USART2 (115200 8N1，与 ESP32 默认 AT 固件保持一致) */
-    USART_DeInit(USART2);
+    /* 5. 配置 USART (115200 8N1，与 ESP32 默认 AT 固件保持一致) */
+    USART_DeInit(BOARD_WIFI_USART);
     USART_InitStructure.USART_BaudRate            = 115200;
     USART_InitStructure.USART_WordLength          = USART_WordLength_8b;
     USART_InitStructure.USART_StopBits            = USART_StopBits_1;
     USART_InitStructure.USART_Parity              = USART_Parity_No;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
     USART_InitStructure.USART_Mode                = USART_Mode_Tx | USART_Mode_Rx;
-    USART_Init(USART2, &USART_InitStructure);
+    USART_Init(BOARD_WIFI_USART, &USART_InitStructure);
 
-    /* 5. 开启空闲总线中断 IDLE 与 DMA 接收请求 */
-    USART_ITConfig(USART2, USART_IT_IDLE, ENABLE);
-    USART_DMACmd(USART2, USART_DMAReq_Rx, ENABLE);
+    /* 6. 开启空闲总线中断 IDLE 与 DMA 接收请求 */
+    USART_ITConfig(BOARD_WIFI_USART, USART_IT_IDLE, ENABLE);
+    USART_DMACmd(BOARD_WIFI_USART, USART_DMAReq_Rx, ENABLE);
 
-    /* 6. 配置 USART2 中断优先级 (抢占 6，在 FreeRTOS 安全调用范围内) */
+    /* 7. 配置 USART 中断优先级 (抢占 6，在 FreeRTOS 安全调用范围内) */
     NVIC_InitStructure.NVIC_IRQChannel                   = USART2_IRQn;
     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 6;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority        = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd                = ENABLE;
     NVIC_Init(&NVIC_InitStructure);
 
-    /* 7. 配置 DMA1_Stream5_Channel_4 (USART2_RX 硬件搬运) */
-    DMA_Cmd(DMA1_Stream5, DISABLE);
+    /* 8. 配置 DMA 硬件搬运 (USART_RX) */
+    DMA_Cmd(BOARD_WIFI_DMA_STREAM, DISABLE);
     wait_timeout = 10000;
-    while ((DMA_GetCmdStatus(DMA1_Stream5) != DISABLE) && (--wait_timeout));
+    while ((DMA_GetCmdStatus(BOARD_WIFI_DMA_STREAM) != DISABLE) && (--wait_timeout));
 
-    DMA_DeInit(DMA1_Stream5);
-    DMA_InitStructure.DMA_Channel            = DMA_Channel_4;
-    DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&(USART2->DR);
+    DMA_DeInit(BOARD_WIFI_DMA_STREAM);
+    DMA_InitStructure.DMA_Channel            = BOARD_WIFI_DMA_CHANNEL;
+    DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&(BOARD_WIFI_USART->DR);
     DMA_InitStructure.DMA_Memory0BaseAddr    = (uint32_t)s_dma_rx_buf;
     DMA_InitStructure.DMA_DIR                = DMA_DIR_PeripheralToMemory;
     DMA_InitStructure.DMA_BufferSize         = ESP32_RX_DMA_BUF_SIZE;
@@ -156,15 +127,15 @@ void ESP32_WiFi_Init(void)
     DMA_InitStructure.DMA_FIFOThreshold      = DMA_FIFOThreshold_Full;
     DMA_InitStructure.DMA_MemoryBurst        = DMA_MemoryBurst_Single;
     DMA_InitStructure.DMA_PeripheralBurst    = DMA_PeripheralBurst_Single;
-    DMA_Init(DMA1_Stream5, &DMA_InitStructure);
+    DMA_Init(BOARD_WIFI_DMA_STREAM, &DMA_InitStructure);
 
-    DMA_ClearFlag(DMA1_Stream5, DMA_FLAG_TCIF5 | DMA_FLAG_HTIF5 | DMA_FLAG_TEIF5 | DMA_FLAG_FEIF5 | DMA_FLAG_DMEIF5);
-    DMA_Cmd(DMA1_Stream5, ENABLE);
+    DMA_ClearFlag(BOARD_WIFI_DMA_STREAM, DMA_FLAG_TCIF5 | DMA_FLAG_HTIF5 | DMA_FLAG_TEIF5 | DMA_FLAG_FEIF5 | DMA_FLAG_DMEIF5);
+    DMA_Cmd(BOARD_WIFI_DMA_STREAM, ENABLE);
 
-    /* 8. 使能 USART2 串口 */
-    USART_Cmd(USART2, ENABLE);
+    /* 9. 使能 USART 串口 */
+    USART_Cmd(BOARD_WIFI_USART, ENABLE);
 
-    printf("[ESP32] USART2 DMA & RingBuffer Driver Initialized.\r\n");
+    printf("[ESP32] USART2 DMA & Industrial RingBuffer Driver Initialized.\r\n");
 }
 
 /* ============================================================================
@@ -178,32 +149,32 @@ void USART2_IRQHandler(void)
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
     /* 清除溢出错误 ORE，防御通信堵塞 */
-    if (USART_GetFlagStatus(USART2, USART_FLAG_ORE) != RESET)
+    if (USART_GetFlagStatus(BOARD_WIFI_USART, USART_FLAG_ORE) != RESET)
     {
-        clear = USART2->SR;
-        clear = USART2->DR;
+        clear = BOARD_WIFI_USART->SR;
+        clear = BOARD_WIFI_USART->DR;
         (void)clear;
     }
 
-    if (USART_GetITStatus(USART2, USART_IT_IDLE) != RESET)
+    if (USART_GetITStatus(BOARD_WIFI_USART, USART_IT_IDLE) != RESET)
     {
         /* 1. 软件序列读 SR/DR 清除 IDLE 标志 */
-        clear = USART2->SR;
-        clear = USART2->DR;
+        clear = BOARD_WIFI_USART->SR;
+        clear = BOARD_WIFI_USART->DR;
         (void)clear;
 
         /* 2. 暂停 DMA 并等待状态就绪 (STM32F4 硬件核心规范) */
-        DMA_Cmd(DMA1_Stream5, DISABLE);
+        DMA_Cmd(BOARD_WIFI_DMA_STREAM, DISABLE);
         wait_timeout = 10000;
-        while ((DMA_GetCmdStatus(DMA1_Stream5) != DISABLE) && (--wait_timeout));
+        while ((DMA_GetCmdStatus(BOARD_WIFI_DMA_STREAM) != DISABLE) && (--wait_timeout));
 
         /* 3. 计算本帧数据字节数 */
-        rx_len = ESP32_RX_DMA_BUF_SIZE - DMA_GetCurrDataCounter(DMA1_Stream5);
+        rx_len = ESP32_RX_DMA_BUF_SIZE - DMA_GetCurrDataCounter(BOARD_WIFI_DMA_STREAM);
 
         if (rx_len > 0)
         {
-            /* 4. 截帧推入环形队列 */
-            RingBuffer_Write(s_dma_rx_buf, rx_len);
+            /* 4. 截帧推入工业级通用环形队列 (自动统计 overflow_count) */
+            RingBuffer_Write(&s_wifi_rb, s_dma_rx_buf, rx_len);
 
             /* 5. 唤醒阻塞等待指令的 WiFi 任务 */
             if (s_wifi_sem != NULL)
@@ -213,9 +184,9 @@ void USART2_IRQHandler(void)
         }
 
         /* 6. 重置 DMA 接收计数器并使能 */
-        DMA_ClearFlag(DMA1_Stream5, DMA_FLAG_TCIF5 | DMA_FLAG_HTIF5 | DMA_FLAG_TEIF5 | DMA_FLAG_FEIF5 | DMA_FLAG_DMEIF5);
-        DMA_SetCurrDataCounter(DMA1_Stream5, ESP32_RX_DMA_BUF_SIZE);
-        DMA_Cmd(DMA1_Stream5, ENABLE);
+        DMA_ClearFlag(BOARD_WIFI_DMA_STREAM, DMA_FLAG_TCIF5 | DMA_FLAG_HTIF5 | DMA_FLAG_TEIF5 | DMA_FLAG_FEIF5 | DMA_FLAG_DMEIF5);
+        DMA_SetCurrDataCounter(BOARD_WIFI_DMA_STREAM, ESP32_RX_DMA_BUF_SIZE);
+        DMA_Cmd(BOARD_WIFI_DMA_STREAM, ENABLE);
 
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
@@ -229,10 +200,10 @@ static void ESP32_SendRaw(const uint8_t * data, uint16_t len)
     uint16_t i;
     for (i = 0; i < len; i++)
     {
-        while ((USART2->SR & USART_FLAG_TXE) == 0);
-        USART2->DR = data[i];
+        while ((BOARD_WIFI_USART->SR & USART_FLAG_TXE) == 0);
+        BOARD_WIFI_USART->DR = data[i];
     }
-    while ((USART2->SR & USART_FLAG_TC) == 0);
+    while ((BOARD_WIFI_USART->SR & USART_FLAG_TC) == 0);
 }
 
 bool ESP32_SendCmdEx(const char * cmd, const char * expected_ack, uint32_t timeout_ms, char * out_resp, uint16_t out_resp_size)
@@ -243,7 +214,7 @@ bool ESP32_SendCmdEx(const char * cmd, const char * expected_ack, uint32_t timeo
     uint8_t temp_buf[64];
     uint16_t read_bytes;
 
-    RingBuffer_Clear();
+    RingBuffer_Reset(&s_wifi_rb);
     memset(resp_buf, 0, sizeof(resp_buf));
 
     /* 打印 TX 调试日志，完全透明 */
@@ -262,7 +233,7 @@ bool ESP32_SendCmdEx(const char * cmd, const char * expected_ack, uint32_t timeo
         }
 
         /* 提取环形缓冲区数据 */
-        while ((read_bytes = RingBuffer_Read(temp_buf, sizeof(temp_buf) - 1)) > 0)
+        while ((read_bytes = RingBuffer_Read(&s_wifi_rb, temp_buf, sizeof(temp_buf) - 1)) > 0)
         {
             temp_buf[read_bytes] = '\0';
 
@@ -488,7 +459,7 @@ static bool ESP32_WaitSendAck(uint32_t timeout_ms)
     while ((xTaskGetTickCount() - start_tick) < pdMS_TO_TICKS(timeout_ms))
     {
         uint8_t ack_buf[64];
-        uint16_t r = RingBuffer_Read(ack_buf, sizeof(ack_buf) - 1);
+        uint16_t r = RingBuffer_Read(&s_wifi_rb, ack_buf, sizeof(ack_buf) - 1);
         if (r > 0)
         {
             ack_buf[r] = '\0';
@@ -521,7 +492,7 @@ static bool ESP32_TCPSend(uint8_t client_id, const uint8_t *data, uint16_t len)
     while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(1000))
     {
         uint8_t b;
-        if (RingBuffer_Read(&b, 1) > 0)
+        if (RingBuffer_Read(&s_wifi_rb, &b, 1) > 0)
         {
             if (b == '>')
             {
@@ -555,7 +526,7 @@ bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
 static void ESP32_CheckClientEvent(void)
 {
     static uint8_t buf[1024];
-    uint16_t len = RingBuffer_Read(buf, sizeof(buf) - 1);
+    uint16_t len = RingBuffer_Read(&s_wifi_rb, buf, sizeof(buf) - 1);
     uint8_t cid;
 
     if (len > 0)
@@ -605,7 +576,7 @@ static void ESP32_CheckClientEvent(void)
                     uint32_t wait_start = xTaskGetTickCount();
                     while (payload_len < (uint16_t)data_len && (xTaskGetTickCount() - wait_start) < pdMS_TO_TICKS(100))
                     {
-                        uint16_t more = RingBuffer_Read(buf + len, sizeof(buf) - 1 - len);
+                        uint16_t more = RingBuffer_Read(&s_wifi_rb, buf + len, sizeof(buf) - 1 - len);
                         if (more > 0)
                         {
                             len += more;
@@ -654,7 +625,7 @@ static void ESP32_CheckClientEvent(void)
                                     printf("\r\n[Fault Test] Enabling DIV_0_TRP trap and triggering Divide-by-Zero (100 / 0)...\r\n");
                                     SCB->CCR |= SCB_CCR_DIV_0_TRP_Msk; /* 开启 Cortex-M4 硬件除零异常陷阱 */
                                     volatile int num = 100;
-                                    volatile int den = 0;
+                                    volatile int den = (cmd_item->valuestring[0] == '\0') ? 1 : 0; /* 运行时动态计算为0，规避静态常数除零警告 */
                                     volatile int res = num / den;
                                     (void)res;
                                 }

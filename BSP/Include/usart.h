@@ -1,27 +1,31 @@
+/**
+  ******************************************************************************
+  * @file    usart.h
+  * @brief   STM32F407 Ë∞ÉËØï‰∏≤Âè£ (USART1) ÈÖçÁΩÆÂ§¥Êñá‰ª∂
+  ******************************************************************************
+  */
+
 #ifndef __USART_H
 #define __USART_H
 
-#include "stdio.h"
+#include <stdio.h>
 #include "stm32f4xx.h"
+#include "bsp_board.h"
 
-/*----------------------USART≈‰÷√∫Í ------------------------*/
+/* Ë∞ÉËØï‰∏≤Âè£Ê≥¢ÁâπÁéá */
+#define USART1_BaudRate             921600
 
-#define  USART1_BaudRate  921600
+/* ÂºïËÑö‰∏éÂ§ñËÆæÊò†Â∞ÑËá≥ bsp_board.h */
+#define USART1_TX_PIN               BOARD_DEBUG_USART_TX_PIN
+#define USART1_TX_PORT              BOARD_DEBUG_USART_PORT
+#define USART1_TX_CLK               BOARD_DEBUG_USART_GPIO_CLK
+#define USART1_TX_PinSource         BOARD_DEBUG_USART_TX_SRC
 
-#define  USART1_TX_PIN				GPIO_Pin_9					// TX “˝Ω≈
-#define	USART1_TX_PORT				GPIOA							// TX “˝Ω≈∂Àø⁄
-#define	USART1_TX_CLK				RCC_AHB1Periph_GPIOA		// TX “˝Ω≈ ±÷”
-#define  USART1_TX_PinSource     GPIO_PinSource9			// “˝Ω≈‘¥
+#define USART1_RX_PIN               BOARD_DEBUG_USART_RX_PIN
+#define USART1_RX_PORT              BOARD_DEBUG_USART_PORT
+#define USART1_RX_CLK               BOARD_DEBUG_USART_GPIO_CLK
+#define USART1_RX_PinSource         BOARD_DEBUG_USART_RX_SRC
 
-#define  USART1_RX_PIN				GPIO_Pin_10             // RX “˝Ω≈
-#define	USART1_RX_PORT				GPIOA                   // RX “˝Ω≈∂Àø⁄
-#define	USART1_RX_CLK				RCC_AHB1Periph_GPIOA    // RX “˝Ω≈ ±÷”
-#define  USART1_RX_PinSource     GPIO_PinSource10        // “˝Ω≈‘¥
+void Usart_Config(void);
 
-
-/*---------------------- ∫Ø ˝…˘√˜ ----------------------------*/
-
-void  Usart_Config (void);	// USART≥ı ºªØ∫Ø ˝
-
-#endif //__USART_H
-
+#endif /* __USART_H */

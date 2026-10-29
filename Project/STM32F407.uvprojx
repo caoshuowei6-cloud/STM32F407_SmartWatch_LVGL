@@ -552,7 +552,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>LVGL_Port</GroupName>
+          <GroupName>Middleware_LVGL</GroupName>
           <Files>
             <File>
               <FileName>lv_port_indev.c</FileName>
@@ -594,11 +594,6 @@
               <FileType>5</FileType>
               <FilePath>..\lvgl\lvgl_private.h</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>LVGL_Core</GroupName>
-          <Files>
             <File>
               <FileName>lv_group.c</FileName>
               <FileType>1</FileType>
@@ -2924,11 +2919,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/tick/lv_tick.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>LVGL_Widgets</GroupName>
-          <Files>
             <File>
               <FileName>img_clothes.c</FileName>
               <FileType>1</FileType>

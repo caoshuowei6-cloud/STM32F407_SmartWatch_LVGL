@@ -603,7 +603,7 @@ static void ESP32_CheckClientEvent(void)
                         {
                             printf("[OTA] Rebooting into Bootloader in 300ms...\r\n");
                             vTaskDelay(pdMS_TO_TICKS(300));
-                            NVIC_SystemReset();
+                            OTA_SafeReboot();
                         }
                     }
                     else if (payload_len > 2 && payload[0] == '{')

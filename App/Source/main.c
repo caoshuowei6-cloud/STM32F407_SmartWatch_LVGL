@@ -269,9 +269,14 @@ static void Task_Heartbeat(void *pvParameters)
         /* �?5 秒输出一次心跳与剩余堆内存大�?*/
         if ((beat_count % 10) == 0)
         {
+            uint32_t uptime_s = beat_count / 2;
             printf("[OS Heartbeat] UpTime: %u s | Free Heap: %u bytes\r\n",
-                   (unsigned int)(beat_count / 2),
+                   (unsigned int)uptime_s,
                    (unsigned int)xPortGetFreeHeapSize());
+            if (uptime_s == 30)
+            {
+                OTA_Confirm_Success();
+            }
         }
     }
 }

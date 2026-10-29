@@ -177,6 +177,25 @@ void W25QXX_Erase_Sector(uint32_t Dst_Addr)
 }
 
 /**
+  * @brief  擦除一个 64KB 块 (Block)
+  * @param  Dst_Addr: 块起始物理地址
+  */
+void W25QXX_Erase_Block(uint32_t Dst_Addr)
+{
+    W25QXX_Write_Enable();
+    W25QXX_Wait_Busy();
+
+    W25QXX_CS_LOW();
+    W25QXX_ReadWriteByte(W25X_BlockErase);
+    W25QXX_ReadWriteByte((uint8_t)((Dst_Addr) >> 16));
+    W25QXX_ReadWriteByte((uint8_t)((Dst_Addr) >> 8));
+    W25QXX_ReadWriteByte((uint8_t)Dst_Addr);
+    W25QXX_CS_HIGH();
+
+    W25QXX_Wait_Busy();
+}
+
+/**
   * @brief  连续读取 SPI Flash 数据
   * @param  pBuffer: 数据接收缓冲区
   * @param  ReadAddr: 起始读取地址 (24位)

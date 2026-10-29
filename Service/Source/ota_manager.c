@@ -1,16 +1,24 @@
 /**
   ******************************************************************************
   * @file    ota_manager.c
-  * @brief   STM32F407 无线空中升级 (OTA) 暂存区管理器与协议引擎实现
+  * @brief   STM32F407 工业级无线空中升级 (OTA) 管理器与双区容灾协议引擎实现
+  * @note    存储载体: W25Q64 外部 SPI NOR Flash (8MB)
+  *          - 0x400000: 黄金固件备份区 (OTA_W25Q_BACKUP_BASE_ADDR)
+  *          - 0x480000: 新固件分片暂存区 (OTA_W25Q_STAGING_BASE_ADDR)
+  *          - RTC 备份域: DR6 ~ DR9 (严格独立隔离)
   ******************************************************************************
   */
 
 #include "ota_manager.h"
+#include "w25qxx.h"
 #include "aes.h"
 #include "stm32f4xx_flash.h"
 #include "stm32f4xx_pwr.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_rtc.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "delay.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -29,22 +37,17 @@ static const uint8_t s_ota_aes_iv[16] = {
 };
 
 static struct AES_ctx s_aes_ctx;
-static bool           s_aes_enabled = false;
-static ota_state_t    s_ota_state = OTA_STATE_IDLE;
-static uint32_t    s_fw_size = 0;
-static uint32_t    s_expected_crc = 0;
-static uint32_t    s_written_bytes = 0;
-
-/* 4 字节未对齐尾部缓冲区 */
-static uint8_t     s_rem_buf[4];
-static uint8_t     s_rem_len = 0;
+static bool           s_aes_enabled   = false;
+static ota_state_t    s_ota_state     = OTA_STATE_IDLE;
+static uint32_t       s_fw_size       = 0;
+static uint32_t       s_expected_crc  = 0;
+static uint32_t       s_written_bytes = 0;
 
 /* ============================================================================
    标准 IEEE 802.3 CRC32 软件计算函数
    ============================================================================ */
-static uint32_t OTA_CalcCRC32(const uint8_t *data, uint32_t len)
+static uint32_t OTA_CalcCRC32_Update(uint32_t crc, const uint8_t *data, uint32_t len)
 {
-    uint32_t crc = 0xFFFFFFFFU;
     for (uint32_t i = 0; i < len; i++)
     {
         crc ^= data[i];
@@ -60,20 +63,47 @@ static uint32_t OTA_CalcCRC32(const uint8_t *data, uint32_t len)
             }
         }
     }
-    return ~crc;
+    return crc;
 }
 
 /* ============================================================================
-   初始化
+   初始化与自保状态探活
    ============================================================================ */
 void OTA_Manager_Init(void)
 {
-    s_ota_state = OTA_STATE_IDLE;
-    s_fw_size = 0;
-    s_expected_crc = 0;
+    s_ota_state     = OTA_STATE_IDLE;
+    s_fw_size       = 0;
+    s_expected_crc  = 0;
     s_written_bytes = 0;
-    s_rem_len = 0;
-    s_aes_enabled = false;
+    s_aes_enabled   = false;
+
+    /* 开启 PWR 时钟以访问 RTC 备份域 */
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+    PWR_BackupAccessCmd(ENABLE);
+
+    uint32_t magic = RTC_ReadBackupRegister(OTA_RTC_REG_MAGIC);
+    uint32_t trial_cnt = RTC_ReadBackupRegister(OTA_RTC_REG_TRIAL_COUNT);
+
+    if (magic == OTA_MAGIC_TRIAL_BOOT)
+    {
+        trial_cnt++;
+        RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, trial_cnt);
+        printf("\r\n=======================================================\r\n");
+        printf(" [OTA TRIAL BOOT] Device running in TRIAL MODE (Attempt %u/3)\r\n", trial_cnt);
+        printf(" Awaiting stable 30s confirmation before committing to permanent.\r\n");
+        printf("=======================================================\r\n\r\n");
+
+        if (trial_cnt > 3)
+        {
+            printf("[OTA ROLLBACK] Warning: Trial boot failed > 3 times! Triggering golden rollback...\r\n");
+            RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_ROLLBACK_REQ);
+            OTA_SafeReboot();
+        }
+    }
+    else if (magic == OTA_MAGIC_CONFIRMED)
+    {
+        /* 正常生产稳定固件运行状态 */
+    }
 }
 
 ota_state_t OTA_GetState(void)
@@ -88,89 +118,82 @@ uint32_t OTA_GetProgress(void)
     return (progress > 100U) ? 100U : progress;
 }
 
+uint32_t OTA_GetReceivedBytes(void)
+{
+    return s_written_bytes;
+}
+
 /* ============================================================================
-   启动 OTA：参数校验与暂存区扇区擦除 (Sector 8~10)
+   启动 OTA 会话：参数校验与 W25Q64 暂存区扇区快速擦除
    ============================================================================ */
 bool OTA_Start(uint32_t total_size, uint32_t expected_crc, bool enable_aes)
 {
     if (total_size < 4096U || total_size > OTA_MAX_FIRMWARE_SIZE)
     {
-        printf("[OTA] Error: Invalid firmware size %u bytes!\r\n", total_size);
+        printf("[OTA] Error: Invalid firmware size %u bytes (Allowed: 4KB ~ %uKB)!\r\n",
+               total_size, OTA_MAX_FIRMWARE_SIZE / 1024U);
         s_ota_state = OTA_STATE_ERROR;
         return false;
     }
 
-    printf("[OTA] Initializing OTA session: Size=%u, CRC=0x%08X, Mode=%s\r\n",
+    /* 确认 W25Q64 物理硬件在线 */
+    uint32_t flash_id = W25QXX_ReadID();
+    if (flash_id != W25Q64_JEDEC_ID)
+    {
+        printf("[OTA] Error: W25Q64 ID mismatch (0x%06X != 0x%06X)! OTA halted.\r\n",
+               flash_id, W25Q64_JEDEC_ID);
+        s_ota_state = OTA_STATE_ERROR;
+        return false;
+    }
+
+    printf("[OTA] Initializing Session: Size=%u B, CRC=0x%08X, Mode=%s\r\n",
            total_size, expected_crc, enable_aes ? "AES-128-CBC" : "Plaintext");
+    printf("[OTA] Target Media: W25Q64 External SPI Flash (Staging Area: 0x%06X)\r\n",
+           OTA_W25Q_STAGING_BASE_ADDR);
 
-    FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
-                    FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
-
-    /* 擦除 Sector 8 (128 KB, 0x08080000 ~ 0x0809FFFF) */
-    printf("[OTA] Erasing Staging Sector 8...\r\n");
-    if (FLASH_EraseSector(FLASH_Sector_8, VoltageRange_3) != FLASH_COMPLETE)
+    /* 快速擦除暂存区 (优先 64KB 块擦除，余量 4KB 扇区擦除) */
+    uint32_t erased = 0;
+    while (erased < total_size)
     {
-        FLASH_Lock();
-        printf("[OTA] Erase Sector 8 failed!\r\n");
-        s_ota_state = OTA_STATE_ERROR;
-        return false;
-    }
-
-    /* 若大于 128KB，擦除 Sector 9 (128 KB, 0x080A0000 ~ 0x080BFFFF) */
-    if (total_size > (128U * 1024U))
-    {
-        printf("[OTA] Erasing Staging Sector 9...\r\n");
-        if (FLASH_EraseSector(FLASH_Sector_9, VoltageRange_3) != FLASH_COMPLETE)
+        uint32_t curr_addr = OTA_W25Q_STAGING_BASE_ADDR + erased;
+        if (((total_size - erased) >= 65536U) && ((curr_addr % 65536U) == 0))
         {
-            FLASH_Lock();
-            printf("[OTA] Erase Sector 9 failed!\r\n");
-            s_ota_state = OTA_STATE_ERROR;
-            return false;
+            printf("[OTA] Erasing 64KB Block at 0x%06X...\r\n", curr_addr);
+            W25QXX_Erase_Block(curr_addr);
+            erased += 65536U;
+        }
+        else
+        {
+            W25QXX_Erase_Sector(curr_addr);
+            erased += 4096U;
         }
     }
-
-    /* 若大于 256KB，擦除 Sector 10 (128 KB, 0x080C0000 ~ 0x080DFFFF) */
-    if (total_size > (256U * 1024U))
-    {
-        printf("[OTA] Erasing Staging Sector 10...\r\n");
-        if (FLASH_EraseSector(FLASH_Sector_10, VoltageRange_3) != FLASH_COMPLETE)
-        {
-            FLASH_Lock();
-            printf("[OTA] Erase Sector 10 failed!\r\n");
-            s_ota_state = OTA_STATE_ERROR;
-            return false;
-        }
-    }
-
-    FLASH_Lock();
 
     s_fw_size       = total_size;
     s_expected_crc  = expected_crc;
     s_written_bytes = 0;
-    s_rem_len       = 0;
     s_aes_enabled   = enable_aes;
     s_ota_state     = OTA_STATE_RECEIVING;
 
     if (s_aes_enabled)
     {
-        /* 初始化 AES-128-CBC 解密上下文 */
         AES_init_ctx_iv(&s_aes_ctx, s_ota_aes_key, s_ota_aes_iv);
-        printf("[OTA] Staging sectors ready. AES-128 decryptor active. Waiting for encrypted chunks...\r\n");
+        printf("[OTA] AES-128-CBC decryptor active. Ready to stream chunks into W25Q64...\r\n");
     }
     else
     {
-        printf("[OTA] Staging sectors ready. Plaintext receiver active. Waiting for chunks...\r\n");
+        printf("[OTA] Plaintext streamer active. Ready to stream chunks into W25Q64...\r\n");
     }
+
     return true;
 }
 
 /* ============================================================================
-   分片写入暂存区 (支持 AES-128 在线解密与标准明文双模)
+   分片流式写入 W25Q64 暂存区 (完全不占用片内 Flash 总线，支持 AES 在线解密)
    ============================================================================ */
 bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 {
-    if (s_ota_state != OTA_STATE_RECEIVING)
+    if (s_ota_state != OTA_STATE_RECEIVING || data == NULL || len == 0)
     {
         return false;
     }
@@ -181,7 +204,7 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
 
     if (s_aes_enabled)
     {
-        if (len > 512 || (len % 16) != 0)
+        if (len > sizeof(dec_buf) || (len % 16) != 0)
         {
             printf("[OTA] Error: Chunk len %u must be <= 512 and 16-byte aligned for AES!\r\n", len);
             s_ota_state = OTA_STATE_ERROR;
@@ -194,83 +217,78 @@ bool OTA_WriteChunk(const uint8_t *data, uint16_t len)
         src_data = dec_buf;
 
         /* 计算本次解密后有效明文长度 (自动丢弃末尾 16 字节对齐的填充字节) */
-        if ((s_written_bytes + s_rem_len + valid_len) > s_fw_size)
+        if ((s_written_bytes + valid_len) > s_fw_size)
         {
-            valid_len = (uint16_t)(s_fw_size - (s_written_bytes + s_rem_len));
+            valid_len = (uint16_t)(s_fw_size - s_written_bytes);
         }
     }
     else
     {
-        /* 明文模式校验溢出 */
-        if ((s_written_bytes + s_rem_len + len) > s_fw_size)
+        if ((s_written_bytes + len) > s_fw_size)
         {
-            printf("[OTA] Error: Firmware overflow! Total would exceed %u bytes\r\n", s_fw_size);
+            printf("[OTA] Error: Firmware overflow! Current=%u + Chunk=%u > Total=%u\r\n",
+                   s_written_bytes, len, s_fw_size);
             s_ota_state = OTA_STATE_ERROR;
             return false;
         }
         valid_len = len;
     }
 
-    FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
-                    FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+    /* 直接写入 W25Q64 外部 SPI Flash 暂存区 */
+    uint32_t write_addr = OTA_W25Q_STAGING_BASE_ADDR + s_written_bytes;
+    W25QXX_Write((uint8_t *)src_data, write_addr, valid_len);
+    s_written_bytes += valid_len;
 
-    uint16_t in_idx = 0;
-
-    /* 1. 若上次遗留不足 4 字节，先补齐并写入 */
-    while (s_rem_len > 0 && s_rem_len < 4 && in_idx < valid_len)
-    {
-        s_rem_buf[s_rem_len++] = src_data[in_idx++];
-        if (s_rem_len == 4)
-        {
-            uint32_t word = ((uint32_t)s_rem_buf[0]) |
-                            (((uint32_t)s_rem_buf[1]) << 8) |
-                            (((uint32_t)s_rem_buf[2]) << 16) |
-                            (((uint32_t)s_rem_buf[3]) << 24);
-
-            if (FLASH_ProgramWord(OTA_STAGING_BASE_ADDR + s_written_bytes, word) != FLASH_COMPLETE)
-            {
-                FLASH_Lock();
-                printf("[OTA] Flash write error at 0x%08X!\r\n", OTA_STAGING_BASE_ADDR + s_written_bytes);
-                s_ota_state = OTA_STATE_ERROR;
-                return false;
-            }
-            s_written_bytes += 4;
-            s_rem_len = 0;
-        }
-    }
-
-    /* 2. 批量写入完整 4 字节 Word */
-    while ((in_idx + 4) <= valid_len)
-    {
-        uint32_t word = ((uint32_t)src_data[in_idx]) |
-                        (((uint32_t)src_data[in_idx + 1]) << 8) |
-                        (((uint32_t)src_data[in_idx + 2]) << 16) |
-                        (((uint32_t)src_data[in_idx + 3]) << 24);
-
-        if (FLASH_ProgramWord(OTA_STAGING_BASE_ADDR + s_written_bytes, word) != FLASH_COMPLETE)
-        {
-            FLASH_Lock();
-            printf("[OTA] Flash write error at 0x%08X!\r\n", OTA_STAGING_BASE_ADDR + s_written_bytes);
-            s_ota_state = OTA_STATE_ERROR;
-            return false;
-        }
-        s_written_bytes += 4;
-        in_idx += 4;
-    }
-
-    /* 3. 剩余不满 4 字节的数据存入 s_rem_buf 等待下一包 */
-    while (in_idx < valid_len)
-    {
-        s_rem_buf[s_rem_len++] = src_data[in_idx++];
-    }
-
-    FLASH_Lock();
     return true;
 }
 
 /* ============================================================================
-   结束传输并校验 CRC32，成功后置位 RTC 升级标志
+   当前稳定运行固件黄金备份 (将片内 Flash App 镜像原封不动复制到 W25Q64 0x400000)
+   ============================================================================ */
+bool OTA_BackupCurrentApp(uint32_t app_size)
+{
+    if (app_size == 0 || app_size > OTA_MAX_FIRMWARE_SIZE)
+    {
+        app_size = OTA_MAX_FIRMWARE_SIZE;
+    }
+
+    printf("\r\n[OTA BACKUP] Backing up current running App (0x%08X, %u B) to W25Q64 0x%06X...\r\n",
+           OTA_APP_BASE_ADDR, app_size, OTA_W25Q_BACKUP_BASE_ADDR);
+
+    /* 1. 擦除 W25Q64 黄金备份区 */
+    uint32_t erased = 0;
+    while (erased < app_size)
+    {
+        uint32_t addr = OTA_W25Q_BACKUP_BASE_ADDR + erased;
+        if (((app_size - erased) >= 65536U) && ((addr % 65536U) == 0))
+        {
+            W25QXX_Erase_Block(addr);
+            erased += 65536U;
+        }
+        else
+        {
+            W25QXX_Erase_Sector(addr);
+            erased += 4096U;
+        }
+    }
+
+    /* 2. 块式读取片内 Flash 并写入 W25Q64 备份区 */
+    uint8_t copy_buf[256];
+    uint32_t copied = 0;
+    while (copied < app_size)
+    {
+        uint16_t chunk = (uint16_t)(((app_size - copied) > sizeof(copy_buf)) ? sizeof(copy_buf) : (app_size - copied));
+        memcpy(copy_buf, (const void *)(OTA_APP_BASE_ADDR + copied), chunk);
+        W25QXX_Write(copy_buf, OTA_W25Q_BACKUP_BASE_ADDR + copied, chunk);
+        copied += chunk;
+    }
+
+    printf("[OTA BACKUP] SUCCESS: %u bytes mirrored to golden backup zone!\r\n", copied);
+    return true;
+}
+
+/* ============================================================================
+   结束传输：全量 CRC32 终审校验 -> 触发黄金固件备份 -> 置位 RTC 升级标志
    ============================================================================ */
 bool OTA_Finish(void)
 {
@@ -279,75 +297,111 @@ bool OTA_Finish(void)
         return false;
     }
 
-    FLASH_Unlock();
-    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
-                    FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
-
-    /* 若末尾有不足 4 字节的数据，填充 0xFF 后写入 */
-    if (s_rem_len > 0)
+    if (s_written_bytes != s_fw_size)
     {
-        uint8_t unwritten = s_rem_len;
-        while (s_rem_len < 4)
-        {
-            s_rem_buf[s_rem_len++] = 0xFF;
-        }
-        uint32_t word = ((uint32_t)s_rem_buf[0]) |
-                        (((uint32_t)s_rem_buf[1]) << 8) |
-                        (((uint32_t)s_rem_buf[2]) << 16) |
-                        (((uint32_t)s_rem_buf[3]) << 24);
-
-        if (FLASH_ProgramWord(OTA_STAGING_BASE_ADDR + s_written_bytes, word) != FLASH_COMPLETE)
-        {
-            FLASH_Lock();
-            s_ota_state = OTA_STATE_ERROR;
-            return false;
-        }
-        s_written_bytes += unwritten;
-        s_rem_len = 0;
-    }
-
-    FLASH_Lock();
-
-    printf("[OTA] All chunks received. Total bytes: %u. Verifying CRC32...\r\n", s_fw_size);
-    s_ota_state = OTA_STATE_VERIFYING;
-
-    /* 校验暂存区中完整固件数据的 CRC32 */
-    uint32_t calc_crc = OTA_CalcCRC32((const uint8_t *)OTA_STAGING_BASE_ADDR, s_fw_size);
-
-    if (calc_crc != s_expected_crc)
-    {
-        printf("[OTA] CRC MISMATCH! Calculated: 0x%08X, Expected: 0x%08X\r\n", calc_crc, s_expected_crc);
+        printf("[OTA] Error: Firmware incomplete! Written %u / %u bytes.\r\n",
+               s_written_bytes, s_fw_size);
         s_ota_state = OTA_STATE_ERROR;
         return false;
     }
 
-    printf("[OTA] CRC VERIFIED SUCCESSFULLY (0x%08X)! Setting RTC flag...\r\n", calc_crc);
+    printf("[OTA] All chunks received (%u bytes). Reading back from W25Q64 for full CRC32...\r\n", s_fw_size);
+    s_ota_state = OTA_STATE_VERIFYING;
 
-    /* 使能 RTC 备份域写入权限并置位标志 */
+    /* 从 W25Q64 暂存区流式读回并计算全局 CRC32 */
+    uint8_t read_buf[256];
+    uint32_t calc_crc = 0xFFFFFFFFU;
+    uint32_t remaining = s_fw_size;
+    uint32_t curr_read_addr = OTA_W25Q_STAGING_BASE_ADDR;
+
+    while (remaining > 0)
+    {
+        uint16_t read_len = (uint16_t)((remaining > sizeof(read_buf)) ? sizeof(read_buf) : remaining);
+        W25QXX_Read(read_buf, curr_read_addr, read_len);
+        calc_crc = OTA_CalcCRC32_Update(calc_crc, read_buf, read_len);
+        curr_read_addr += read_len;
+        remaining -= read_len;
+    }
+    calc_crc = ~calc_crc;
+
+    if (calc_crc != s_expected_crc)
+    {
+        printf("[OTA] CRC MISMATCH! Computed: 0x%08X, Expected: 0x%08X\r\n", calc_crc, s_expected_crc);
+        printf("[OTA] Image corrupted or tampered! Staging image will NOT be applied.\r\n");
+        s_ota_state = OTA_STATE_ERROR;
+        return false;
+    }
+
+    printf("[OTA] CRC32 VERIFIED 100%% SUCCESS (0x%08X)!\r\n", calc_crc);
+
+    /* 启动旧固件黄金容灾备份 */
+    s_ota_state = OTA_STATE_BACKING_UP;
+    OTA_BackupCurrentApp(s_fw_size);
+
+    /* 写入 RTC 备份寄存器 (DR6 ~ DR9 专属通道) */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
     PWR_BackupAccessCmd(ENABLE);
 
-    RTC_WriteBackupRegister(RTC_BKP_DR2, OTA_UPGRADE_REQ_MAGIC);
-    RTC_WriteBackupRegister(RTC_BKP_DR3, s_fw_size);
-    RTC_WriteBackupRegister(RTC_BKP_DR4, s_expected_crc);
+    RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_UPGRADE_REQ);
+    RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, 0);
+    RTC_WriteBackupRegister(OTA_RTC_REG_FW_SIZE, s_fw_size);
+    RTC_WriteBackupRegister(OTA_RTC_REG_FW_CRC, s_expected_crc);
 
     s_ota_state = OTA_STATE_READY_TO_REBOOT;
-    printf("[OTA] Staging image ready. Ready to reboot into Bootloader!\r\n");
+    printf("\r\n=======================================================\r\n");
+    printf("   [OTA READY] Dual-zone protection ready!\r\n");
+    printf("   Magic=0x%08X written to RTC_BKP_DR6.\r\n", OTA_MAGIC_UPGRADE_REQ);
+    printf("   Call OTA_SafeReboot() to execute upgrade.\r\n");
+    printf("=======================================================\r\n\r\n");
+
     return true;
 }
 
 void OTA_Abort(void)
 {
     printf("[OTA] OTA session aborted.\r\n");
-    s_ota_state = OTA_STATE_IDLE;
-    s_fw_size = 0;
-    s_expected_crc = 0;
+    s_ota_state     = OTA_STATE_IDLE;
+    s_fw_size       = 0;
+    s_expected_crc  = 0;
     s_written_bytes = 0;
-    s_rem_len = 0;
 }
 
 /* ============================================================================
-   协议消息解析与处理 (对接 ESP32 8080 TCP Server)
+   首次启动转正确认与防变砖安全关断复位
+   ============================================================================ */
+void OTA_Confirm_Success(void)
+{
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+    PWR_BackupAccessCmd(ENABLE);
+
+    uint32_t magic = RTC_ReadBackupRegister(OTA_RTC_REG_MAGIC);
+    if (magic == OTA_MAGIC_TRIAL_BOOT)
+    {
+        RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_CONFIRMED);
+        RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, 0);
+        printf("\r\n=======================================================\r\n");
+        printf(" [OTA SUCCESS] New firmware verified stable for 30s!   \r\n");
+        printf(" RTC Magic cleared to 0. Promotion to permanent COMPLETE.\r\n");
+        printf("=======================================================\r\n\r\n");
+    }
+}
+
+void OTA_SafeReboot(void)
+{
+    printf("[OTA] Safe reboot sequence initiating...\r\n");
+
+    /* 1. 挂起调度并全局关闭中断，防止硬件处于未知时序 */
+    __disable_irq();
+
+    /* 2. 简短延时确保串口与总线电平稳定 */
+    Delay_ms(100);
+
+    /* 3. 触发 Cortex-M4 内核级软复位 */
+    NVIC_SystemReset();
+}
+
+/* ============================================================================
+   协议消息解析与处理 (对接 ESP32 8080 TCP Server 及 云端下发通道)
    ============================================================================ */
 bool OTA_ProcessMessage(const uint8_t *payload, uint16_t len, char *resp_buf, uint16_t resp_max_len)
 {
@@ -356,7 +410,6 @@ bool OTA_ProcessMessage(const uint8_t *payload, uint16_t len, char *resp_buf, ui
         return false;
     }
 
-    /* 1. OTA_START:<size>:<crc_hex> */
     /* 1. OTA_START:<size>:<crc_hex> 或 OTA_START_AES:<size>:<crc_hex> */
     if (len >= 10 && strncmp((const char *)payload, "OTA_START", 9) == 0)
     {

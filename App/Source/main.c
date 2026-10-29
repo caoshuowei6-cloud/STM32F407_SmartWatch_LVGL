@@ -28,6 +28,7 @@
 #include "ota_manager.h"
 #include "cm_backtrace.h"
 #include "w25qxx.h"
+#include "history_storage.h"
 #include <stdio.h>
 
 /* ============================================================================
@@ -213,6 +214,7 @@ static void Task_Sensor(void *pvParameters)
             if (OTA_GetState() != OTA_STATE_RECEIVING)
             {
                 Param_Storage_Sync();
+                History_Storage_PeriodicCheck();
             }
         }
 
@@ -302,7 +304,8 @@ int main(void)
     Param_Storage_Init();/* 两级非易失性参数存储初始化 (恢复步数/配置，跨天自动归�? */
     OTA_Manager_Init();  /* 无线 OTA 暂存区管理器初始�?(双镜像防变砖就绪) */
     W25QXX_Init();       /* 硬件 SPI1 W25Q64 初始化 (PA4~PA7) */
-    W25QXX_SelfTest();   /* 读取 ID 与测试扇区自检 */
+    W25QXX_SelfTest();
+    History_Storage_Init();   /* 读取 ID 与测试扇区自检 */
 
     printf("\r\n=======================================================\r\n");
     printf("   STM32F407 SmartWatch [V3.0 OTA Firmware Online!]     \r\n");

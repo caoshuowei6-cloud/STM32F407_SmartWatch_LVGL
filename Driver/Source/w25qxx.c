@@ -254,6 +254,14 @@ void W25QXX_Write_NoCheck(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByte
 }
 
 /**
+  * @brief  写入任意长度数据 (自动分页管理)
+  */
+void W25QXX_Write(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
+{
+    W25QXX_Write_NoCheck(pBuffer, WriteAddr, NumByteToWrite);
+}
+
+/**
   * @brief  自动化上电自检：读取 ID、并在末尾安全扇区测试擦写与读回
   * @retval true: 自检 100% 成功; false: 失败
   */

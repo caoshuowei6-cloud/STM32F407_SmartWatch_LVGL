@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
 
   <SchemaVersion>2.1</SchemaVersion>
@@ -19,28 +19,28 @@
           <PackID>Keil.STM32F4xx_DFP.3.1.1</PackID>
           <PackURL>https://www.keil.com/pack/</PackURL>
           <Cpu>IRAM(0x20000000,0x20000) IRAM2(0x10000000,0x10000) IROM(0x08000000,0x100000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ELITTLE</Cpu>
-          <FlashUtilSpec />
-          <StartupFile />
+          <FlashUtilSpec></FlashUtilSpec>
+          <StartupFile></StartupFile>
           <FlashDriverDll>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000 -FN1 -FF0STM32F4xx_1024 -FS08000000 -FL0100000 -FP0($$Device:STM32F407ZGTx$CMSIS\Flash\STM32F4xx_1024.FLM))</FlashDriverDll>
           <DeviceId>0</DeviceId>
           <RegisterFile>$$Device:STM32F407ZGTx$Drivers\CMSIS\Device\ST\STM32F4xx\Include\stm32f4xx.h</RegisterFile>
-          <MemoryEnv />
-          <Cmp />
-          <Asm />
-          <Linker />
-          <OHString />
-          <InfinionOptionDll />
-          <SLE66CMisc />
-          <SLE66AMisc />
-          <SLE66LinkerMisc />
+          <MemoryEnv></MemoryEnv>
+          <Cmp></Cmp>
+          <Asm></Asm>
+          <Linker></Linker>
+          <OHString></OHString>
+          <InfinionOptionDll></InfinionOptionDll>
+          <SLE66CMisc></SLE66CMisc>
+          <SLE66AMisc></SLE66AMisc>
+          <SLE66LinkerMisc></SLE66LinkerMisc>
           <SFDFile>$$Device:STM32F407ZGTx$CMSIS\SVD\STM32F40x.svd</SFDFile>
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
-          <BinPath />
-          <IncludePath />
-          <LibPath />
-          <RegisterFilePath />
-          <DBRegisterFilePath />
+          <BinPath></BinPath>
+          <IncludePath></IncludePath>
+          <LibPath></LibPath>
+          <RegisterFilePath></RegisterFilePath>
+          <DBRegisterFilePath></DBRegisterFilePath>
           <TargetStatus>
             <Error>0</Error>
             <ExitCodeStop>0</ExitCodeStop>
@@ -62,8 +62,8 @@
           <BeforeCompile>
             <RunUserProg1>0</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name />
-            <UserProg2Name />
+            <UserProg1Name></UserProg1Name>
+            <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopU1X>0</nStopU1X>
@@ -72,8 +72,8 @@
           <BeforeMake>
             <RunUserProg1>0</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
-            <UserProg1Name />
-            <UserProg2Name />
+            <UserProg1Name></UserProg1Name>
+            <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopB1X>0</nStopB1X>
@@ -83,14 +83,14 @@
             <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>0</RunUserProg2>
             <UserProg1Name>fromelf.exe --bin -o "$L@L.bin" "#L"</UserProg1Name>
-            <UserProg2Name />
+            <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
             <nStopA2X>0</nStopA2X>
           </AfterMake>
           <SelectedForBatchBuild>0</SelectedForBatchBuild>
-          <SVCSIdString />
+          <SVCSIdString></SVCSIdString>
         </TargetCommonOption>
         <CommonProperty>
           <UseCPPCompiler>0</UseCPPCompiler>
@@ -104,8 +104,8 @@
           <AssembleAssemblyFile>0</AssembleAssemblyFile>
           <PublicsOnly>0</PublicsOnly>
           <StopOnExitCode>3</StopOnExitCode>
-          <CustomArgument />
-          <IncludeLibraryModules />
+          <CustomArgument></CustomArgument>
+          <IncludeLibraryModules></IncludeLibraryModules>
           <ComprImg>1</ComprImg>
         </CommonProperty>
         <DllOption>
@@ -139,10 +139,10 @@
           <bUseTDR>1</bUseTDR>
           <Flash2>BIN\UL2CM3.DLL</Flash2>
           <Flash3>"" ()</Flash3>
-          <Flash4 />
-          <pFcarmOut />
-          <pFcarmGrp />
-          <pFcArmRoot />
+          <Flash4></Flash4>
+          <pFcarmOut></pFcarmOut>
+          <pFcarmGrp></pFcarmGrp>
+          <pFcArmRoot></pFcArmRoot>
           <FcArmLst>0</FcArmLst>
         </Utilities>
         <TargetArmAds>
@@ -175,7 +175,7 @@
             <RvctClst>0</RvctClst>
             <GenPPlst>0</GenPPlst>
             <AdsCpuType>"Cortex-M4"</AdsCpuType>
-            <RvctDeviceName />
+            <RvctDeviceName></RvctDeviceName>
             <mOS>0</mOS>
             <uocRom>0</uocRom>
             <uocRam>0</uocRam>
@@ -310,7 +310,7 @@
                 <Size>0x10000</Size>
               </OCR_RVCT10>
             </OnChipMemories>
-            <RvctStartVector />
+            <RvctStartVector></RvctStartVector>
           </ArmAdsMisc>
           <Cads>
             <interw>1</interw>
@@ -337,9 +337,9 @@
             <v6WtE>0</v6WtE>
             <v6Rtti>0</v6Rtti>
             <VariousControls>
-              <MiscControls />
+              <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F40_41xxx,LV_LVGL_H_INCLUDE_SIMPLE,LV_CONF_INCLUDE_SIMPLE,VECT_TAB_OFFSET=0x20000</Define>
-              <Undefine />
+              <Undefine></Undefine>
               <IncludePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Include;..\STM32\CMSIS\Include;..\STM32\STM32F4xx_StdPeriph_Driver\inc;..\App\Include;..\Service\Include;..\Driver\Include;..\BSP\Include;..\Middleware\Include;..\Middleware\Include\Languages\zh-CN;..\Middleware\Include\Languages\en-US;..\lvgl;..\lvgl\porting;..\freertos\include;..\freertos\portable</IncludePath>
             </VariousControls>
           </Cads>
@@ -355,10 +355,10 @@
             <useXO>0</useXO>
             <ClangAsOpt>4</ClangAsOpt>
             <VariousControls>
-              <MiscControls />
-              <Define />
-              <Undefine />
-              <IncludePath />
+              <MiscControls></MiscControls>
+              <Define></Define>
+              <Undefine></Undefine>
+              <IncludePath></IncludePath>
             </VariousControls>
           </Aads>
           <LDads>
@@ -370,19 +370,19 @@
             <useFile>1</useFile>
             <TextAddressRange>0x08020000</TextAddressRange>
             <DataAddressRange>0x20000000</DataAddressRange>
-            <pXoBase />
+            <pXoBase></pXoBase>
             <ScatterFile>.\STM32F407_APP.sct</ScatterFile>
-            <IncludeLibs />
-            <IncludeLibsPath />
-            <Misc />
-            <LinkerInputFile />
-            <DisabledWarnings />
+            <IncludeLibs></IncludeLibs>
+            <IncludeLibsPath></IncludeLibsPath>
+            <Misc></Misc>
+            <LinkerInputFile></LinkerInputFile>
+            <DisabledWarnings></DisabledWarnings>
           </LDads>
         </TargetArmAds>
       </TargetOption>
       <Groups>
         <Group>
-          <GroupName>1_App</GroupName>
+          <GroupName>App</GroupName>
           <Files>
             <File>
               <FileName>main.c</FileName>
@@ -427,7 +427,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>2_Service</GroupName>
+          <GroupName>Service</GroupName>
           <Files>
             <File>
               <FileName>power_manager.c</FileName>
@@ -457,7 +457,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>3_Driver</GroupName>
+          <GroupName>Driver</GroupName>
           <Files>
             <File>
               <FileName>lcd_spi_154.c</FileName>
@@ -497,7 +497,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>4_BSP</GroupName>
+          <GroupName>BSP</GroupName>
           <Files>
             <File>
               <FileName>delay.c</FileName>
@@ -519,10 +519,15 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\Source\led.c</FilePath>
             </File>
-          <File><FileName>bsp_ringbuffer.c</FileName><FileType>1</FileType><FilePath>..\BSP\Source\bsp_ringbuffer.c</FilePath></File></Files>
+            <File>
+              <FileName>bsp_ringbuffer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\Source\bsp_ringbuffer.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
-          <GroupName>5_Middleware</GroupName>
+          <GroupName>Middleware</GroupName>
           <Files>
             <File>
               <FileName>cJSON.c</FileName>
@@ -547,562 +552,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>STM32</GroupName>
-          <Files>
-            <File>
-              <FileName>startup_stm32f40_41xxx.s</FileName>
-              <FileType>2</FileType>
-              <FilePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Source\Templates\arm\startup_stm32f40_41xxx.s</FilePath>
-            </File>
-            <File>
-              <FileName>system_stm32f4xx.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Source\Templates\system_stm32f4xx.c</FilePath>
-            </File>
-            <File>
-              <FileName>misc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\misc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_rcc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_rcc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_gpio.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_gpio.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_usart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_usart.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_spi.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_spi.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_rtc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_rtc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_pwr.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_pwr.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_adc.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_adc.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_dma.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_dma.c</FilePath>
-            </File>
-            <File>
-              <FileName>stm32f4xx_flash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_flash.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/benchmark/assets</GroupName>
-          <Files>
-            <File>
-              <FileName>img_benchmark_avatar.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/img_benchmark_avatar.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_benchmark_lvgl_logo_argb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/img_benchmark_lvgl_logo_argb.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_benchmark_lvgl_logo_rgb.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/img_benchmark_lvgl_logo_rgb.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_12_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_12_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_14_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_14_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_16_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_16_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_18_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_18_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_20_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_20_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_24_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_24_aligned.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_font_benchmark_montserrat_26_aligned.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/assets/lv_font_benchmark_montserrat_26_aligned.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/benchmark</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_benchmark.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/benchmark/lv_demo_benchmark.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/gltf</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_gltf.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/gltf/lv_demo_gltf.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/keypad_encoder</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_keypad_encoder.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/keypad_encoder/lv_demo_keypad_encoder.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demos.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/lv_demos.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/music/assets</GroupName>
-          <Files>
-            <File>
-              <FileName>img_lv_demo_music_btn_corner_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_corner_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_list_pause.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_list_pause.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_list_pause_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_list_pause_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_list_play.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_list_play.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_list_play_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_list_play_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_loop.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_loop.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_loop_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_loop_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_next.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_next.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_next_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_next_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_pause.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_pause.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_pause_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_pause_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_play.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_play.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_play_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_play_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_prev.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_prev.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_prev_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_prev_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_rnd.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_rnd.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_btn_rnd_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_btn_rnd_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_corner_left.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_corner_left.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_corner_left_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_corner_left_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_corner_right.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_corner_right.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_corner_right_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_corner_right_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_1.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_1_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_1_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_2.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_2_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_2_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_3.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_3.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_cover_3_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_cover_3_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_1.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_1_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_1_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_2.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_2.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_2_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_2_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_3.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_3.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_3_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_3_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_4.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_icon_4_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_icon_4_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_list_border.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_list_border.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_list_border_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_list_border_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_logo.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_logo.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_slider_knob.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_slider_knob.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_slider_knob_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_slider_knob_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_wave_bottom.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_wave_bottom.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_wave_bottom_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_wave_bottom_large.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_wave_top.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_wave_top.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lv_demo_music_wave_top_large.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/assets/img_lv_demo_music_wave_top_large.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/music</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_music.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/lv_demo_music.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_music_list.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/lv_demo_music_list.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_music_main.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/music/lv_demo_music_main.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/render/assets</GroupName>
-          <Files>
-            <File>
-              <FileName>img_render_arc_bg.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_arc_bg.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_argb8888.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_argb8888.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_argb8888_premultiplied.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_argb8888_premultiplied.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_i1.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_i1.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_l8.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_l8.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_rgb565.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_rgb565.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_rgb565a8.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_rgb565a8.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_rgb565_swapped.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_rgb565_swapped.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_rgb888.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_rgb888.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_render_lvgl_logo_xrgb8888.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/assets/img_render_lvgl_logo_xrgb8888.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/render</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_render.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/render/lv_demo_render.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/stress</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_stress.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/stress/lv_demo_stress.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/vector_graphic/assets</GroupName>
-          <Files>
-            <File>
-              <FileName>img_demo_vector_avatar.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/vector_graphic/assets/img_demo_vector_avatar.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/vector_graphic</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_vector_graphic.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/vector_graphic/lv_demo_vector_graphic.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/widgets/assets</GroupName>
-          <Files>
-            <File>
-              <FileName>img_clothes.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/assets/img_clothes.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_demo_widgets_avatar.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/assets/img_demo_widgets_avatar.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_demo_widgets_needle.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/assets/img_demo_widgets_needle.c</FilePath>
-            </File>
-            <File>
-              <FileName>img_lvgl_logo.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/assets/img_lvgl_logo.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/demos/widgets</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_demo_widgets.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/lv_demo_widgets.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_widgets_analytics.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_analytics.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_widgets_components.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_components.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_widgets_profile.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_profile.c</FilePath>
-            </File>
-            <File>
-              <FileName>lv_demo_widgets_shop.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_shop.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/porting</GroupName>
+          <GroupName>LVGL_Port</GroupName>
           <Files>
             <File>
               <FileName>lv_port_indev.c</FileName>
@@ -1114,10 +564,40 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/porting/lv_port_lcd_stm32.c</FilePath>
             </File>
+            <File>
+              <FileName>lv_conf.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lv_conf.h</FilePath>
+            </File>
+            <File>
+              <FileName>lv_port_indev.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lv_port_indev.h</FilePath>
+            </File>
+            <File>
+              <FileName>lv_port_lcd_stm32.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lv_port_lcd_stm32.h</FilePath>
+            </File>
+            <File>
+              <FileName>lv_version.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lv_version.h</FilePath>
+            </File>
+            <File>
+              <FileName>lvgl.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lvgl.h</FilePath>
+            </File>
+            <File>
+              <FileName>lvgl_private.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\lvgl\lvgl_private.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>lvgl/src/core</GroupName>
+          <GroupName>LVGL_Core</GroupName>
           <Files>
             <File>
               <FileName>lv_group.c</FileName>
@@ -1189,31 +669,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/core/lv_refr.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/debugging/monkey</GroupName>
-          <Files>
             <File>
               <FileName>lv_monkey.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/debugging/monkey/lv_monkey.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/debugging/sysmon</GroupName>
-          <Files>
             <File>
               <FileName>lv_sysmon.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/debugging/sysmon/lv_sysmon.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/debugging/test</GroupName>
-          <Files>
             <File>
               <FileName>lv_test_display.c</FileName>
               <FileType>1</FileType>
@@ -1244,11 +709,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/debugging/test/lv_test_screenshot_compare.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/debugging/vg_lite_tvg</GroupName>
-          <Files>
             <File>
               <FileName>vg_lite_matrix.c</FileName>
               <FileType>1</FileType>
@@ -1259,51 +719,26 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/debugging/vg_lite_tvg/vg_lite_tvg.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/display</GroupName>
-          <Files>
             <File>
               <FileName>lv_display.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/display/lv_display.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/convert/helium</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_convert_helium.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/convert/helium/lv_draw_buf_convert_helium.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/convert</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_convert.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/convert/lv_draw_buf_convert.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/convert/neon</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_convert_neon.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/convert/neon/lv_draw_buf_convert_neon.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/dma2d</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_dma2d.c</FileName>
               <FileType>1</FileType>
@@ -1319,11 +754,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/dma2d/lv_draw_dma2d_img.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/espressif/ppa</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_ppa.c</FileName>
               <FileType>1</FileType>
@@ -1344,11 +774,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/espressif/ppa/lv_draw_ppa_img.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/eve</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_eve.c</FileName>
               <FileType>1</FileType>
@@ -1394,11 +819,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/eve/lv_eve.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw.c</FileName>
               <FileType>1</FileType>
@@ -1464,11 +884,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/lv_image_decoder.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/nanovg</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_nanovg.c</FileName>
               <FileType>1</FileType>
@@ -1554,11 +969,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/nanovg/lv_nanovg_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/nema_gfx</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_nema_gfx.c</FileName>
               <FileType>1</FileType>
@@ -1624,11 +1034,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/nema_gfx/lv_nema_gfx_path.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/nxp/g2d</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_g2d.c</FileName>
               <FileType>1</FileType>
@@ -1659,11 +1064,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/nxp/g2d/lv_g2d_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/nxp/pxp</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_pxp.c</FileName>
               <FileType>1</FileType>
@@ -1704,21 +1104,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/nxp/pxp/lv_pxp_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/opengles</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_opengles.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/opengles/lv_draw_opengles.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/renesas/dave2d</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_dave2d.c</FileName>
               <FileType>1</FileType>
@@ -1769,31 +1159,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/renesas/dave2d/lv_draw_dave2d_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/sdl</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_sdl.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/sdl/lv_draw_sdl.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/snapshot</GroupName>
-          <Files>
             <File>
               <FileName>lv_snapshot.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/snapshot/lv_snapshot.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/sw/blend</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_sw_blend.c</FileName>
               <FileType>1</FileType>
@@ -1844,11 +1219,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/sw/blend/neon</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_sw_blend_neon_to_rgb565.c</FileName>
               <FileType>1</FileType>
@@ -1859,21 +1229,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/sw/blend/riscv_v</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_sw_blend_riscv_v_to_rgb888.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/sw/blend/riscv_v/lv_draw_sw_blend_riscv_v_to_rgb888.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/sw</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_sw.c</FileName>
               <FileType>1</FileType>
@@ -1954,11 +1314,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/sw/lv_draw_sw_vector.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/draw/vg_lite</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_buf_vg_lite.c</FileName>
               <FileType>1</FileType>
@@ -2064,11 +1419,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/draw/vg_lite/lv_vg_lite_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/drm</GroupName>
-          <Files>
             <File>
               <FileName>lv_linux_drm.c</FileName>
               <FileType>1</FileType>
@@ -2084,161 +1434,81 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/drm/lv_linux_drm_egl.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/fb</GroupName>
-          <Files>
             <File>
               <FileName>lv_linux_fbdev.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/fb/lv_linux_fbdev.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/ft81x</GroupName>
-          <Files>
             <File>
               <FileName>lv_ft81x.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/ft81x/lv_ft81x.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/ili9341</GroupName>
-          <Files>
             <File>
               <FileName>lv_ili9341.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/ili9341/lv_ili9341.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/lcd</GroupName>
-          <Files>
             <File>
               <FileName>lv_lcd_generic_mipi.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/lcd/lv_lcd_generic_mipi.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/lovyan_gfx</GroupName>
-          <Files>
             <File>
               <FileName>lv_lovyan_gfx.cpp</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/lovyan_gfx/lv_lovyan_gfx.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/nv3007</GroupName>
-          <Files>
             <File>
               <FileName>lv_nv3007.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/nv3007/lv_nv3007.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/nxp_elcdif</GroupName>
-          <Files>
             <File>
               <FileName>lv_nxp_elcdif.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/nxp_elcdif/lv_nxp_elcdif.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/renesas_glcdc</GroupName>
-          <Files>
             <File>
               <FileName>lv_renesas_glcdc.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/renesas_glcdc/lv_renesas_glcdc.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/st7735</GroupName>
-          <Files>
             <File>
               <FileName>lv_st7735.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/st7735/lv_st7735.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/st7789</GroupName>
-          <Files>
             <File>
               <FileName>lv_st7789.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/st7789/lv_st7789.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/st7796</GroupName>
-          <Files>
             <File>
               <FileName>lv_st7796.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/st7796/lv_st7796.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/st_ltdc</GroupName>
-          <Files>
             <File>
               <FileName>lv_st_ltdc.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/st_ltdc/lv_st_ltdc.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/display/tft_espi</GroupName>
-          <Files>
             <File>
               <FileName>lv_tft_espi.cpp</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/display/tft_espi/lv_tft_espi.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/draw/eve</GroupName>
-          <Files>
             <File>
               <FileName>lv_draw_eve_display.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/draw/eve/lv_draw_eve_display.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/evdev</GroupName>
-          <Files>
             <File>
               <FileName>lv_evdev.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/evdev/lv_evdev.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/libinput</GroupName>
-          <Files>
             <File>
               <FileName>lv_libinput.c</FileName>
               <FileType>1</FileType>
@@ -2249,11 +1519,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/libinput/lv_xkb.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/nuttx</GroupName>
-          <Files>
             <File>
               <FileName>lv_nuttx_cache.c</FileName>
               <FileType>1</FileType>
@@ -2299,21 +1564,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/nuttx/lv_nuttx_touchscreen.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/opengles/assets</GroupName>
-          <Files>
             <File>
               <FileName>lv_opengles_shader.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/opengles/assets/lv_opengles_shader.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/opengles/glad/src</GroupName>
-          <Files>
             <File>
               <FileName>egl.c</FileName>
               <FileType>1</FileType>
@@ -2329,11 +1584,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/opengles/glad/src/gles2.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/opengles</GroupName>
-          <Files>
             <File>
               <FileName>lv_opengles_debug.c</FileName>
               <FileType>1</FileType>
@@ -2359,11 +1609,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/opengles/lv_opengles_texture.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/opengles/opengl_shader</GroupName>
-          <Files>
             <File>
               <FileName>lv_opengl_shader_manager.c</FileName>
               <FileType>1</FileType>
@@ -2374,21 +1619,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/opengles/opengl_shader/lv_opengl_shader_program.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/qnx</GroupName>
-          <Files>
             <File>
               <FileName>lv_qnx.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/qnx/lv_qnx.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/sdl</GroupName>
-          <Files>
             <File>
               <FileName>lv_sdl_egl.c</FileName>
               <FileType>1</FileType>
@@ -2424,11 +1659,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/sdl/lv_sdl_window.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/uefi</GroupName>
-          <Files>
             <File>
               <FileName>lv_uefi_context.c</FileName>
               <FileType>1</FileType>
@@ -2459,11 +1689,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/uefi/lv_uefi_private.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/wayland</GroupName>
-          <Files>
             <File>
               <FileName>lv_wayland.c</FileName>
               <FileType>1</FileType>
@@ -2514,11 +1739,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/wayland/lv_wl_xdg_shell.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/windows</GroupName>
-          <Files>
             <File>
               <FileName>lv_windows_context.c</FileName>
               <FileType>1</FileType>
@@ -2534,11 +1754,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/windows/lv_windows_input.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/drivers/x11</GroupName>
-          <Files>
             <File>
               <FileName>lv_x11_display.c</FileName>
               <FileType>1</FileType>
@@ -2549,31 +1764,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/drivers/x11/lv_x11_input.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/font/binfont_loader</GroupName>
-          <Files>
             <File>
               <FileName>lv_binfont_loader.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/font/binfont_loader/lv_binfont_loader.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/font/fmt_txt</GroupName>
-          <Files>
             <File>
               <FileName>lv_font_fmt_txt.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/font/fmt_txt/lv_font_fmt_txt.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/font/font_manager</GroupName>
-          <Files>
             <File>
               <FileName>lv_font_manager.c</FileName>
               <FileType>1</FileType>
@@ -2584,21 +1784,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/font/font_manager/lv_font_manager_recycle.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/font/imgfont</GroupName>
-          <Files>
             <File>
               <FileName>lv_imgfont.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/font/imgfont/lv_imgfont.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/font</GroupName>
-          <Files>
             <File>
               <FileName>lv_font.c</FileName>
               <FileType>1</FileType>
@@ -2744,11 +1934,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/font/lv_font_unscii_8.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/indev</GroupName>
-          <Files>
             <File>
               <FileName>lv_gridnav.c</FileName>
               <FileType>1</FileType>
@@ -2769,41 +1954,21 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/indev/lv_indev_scroll.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/layouts/flex</GroupName>
-          <Files>
             <File>
               <FileName>lv_flex.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/layouts/flex/lv_flex.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/layouts/grid</GroupName>
-          <Files>
             <File>
               <FileName>lv_grid.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/layouts/grid/lv_grid.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/layouts</GroupName>
-          <Files>
             <File>
               <FileName>lv_layout.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/layouts/lv_layout.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/barcode</GroupName>
-          <Files>
             <File>
               <FileName>code128.c</FileName>
               <FileType>1</FileType>
@@ -2814,41 +1979,21 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/barcode/lv_barcode.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/bin_decoder</GroupName>
-          <Files>
             <File>
               <FileName>lv_bin_decoder.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/bin_decoder/lv_bin_decoder.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/bmp</GroupName>
-          <Files>
             <File>
               <FileName>lv_bmp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/bmp/lv_bmp.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/ffmpeg</GroupName>
-          <Files>
             <File>
               <FileName>lv_ffmpeg.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/ffmpeg/lv_ffmpeg.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/freetype</GroupName>
-          <Files>
             <File>
               <FileName>lv_freetype.c</FileName>
               <FileType>1</FileType>
@@ -2874,11 +2019,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/freetype/lv_ftsystem.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/frogfs/src</GroupName>
-          <Files>
             <File>
               <FileName>decomp_raw.c</FileName>
               <FileType>1</FileType>
@@ -2889,11 +2029,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/frogfs/src/frogfs.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/fsdrv</GroupName>
-          <Files>
             <File>
               <FileName>lv_fs_arduino_esp_littlefs.cpp</FileName>
               <FileType>1</FileType>
@@ -2949,11 +2084,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/fsdrv/lv_fs_win32.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/FT800-FT813</GroupName>
-          <Files>
             <File>
               <FileName>EVE_commands.c</FileName>
               <FileType>1</FileType>
@@ -2964,21 +2094,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/FT800-FT813/EVE_supplemental.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gif</GroupName>
-          <Files>
             <File>
               <FileName>gif.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gif/gif.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gltf/gltf_data</GroupName>
-          <Files>
             <File>
               <FileName>lv_gltf_data.cpp</FileName>
               <FileType>1</FileType>
@@ -3034,21 +2154,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gltf/gltf_data/lv_gltf_uniform_locations.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gltf/gltf_environment</GroupName>
-          <Files>
             <File>
               <FileName>lv_gltf_ibl_sampler.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gltf/gltf_environment/lv_gltf_ibl_sampler.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gltf/gltf_view/assets</GroupName>
-          <Files>
             <File>
               <FileName>chromatic.c</FileName>
               <FileType>1</FileType>
@@ -3059,11 +2169,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gltf/gltf_view/assets/lv_gltf_view_shader.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gltf/gltf_view</GroupName>
-          <Files>
             <File>
               <FileName>lv_gltf_view.cpp</FileName>
               <FileType>1</FileType>
@@ -3079,11 +2184,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gltf/gltf_view/lv_gltf_view_shader.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gltf/math</GroupName>
-          <Files>
             <File>
               <FileName>lv_3dmath.c</FileName>
               <FileType>1</FileType>
@@ -3094,51 +2194,26 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gltf/math/lv_gltf_math.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/gstreamer</GroupName>
-          <Files>
             <File>
               <FileName>lv_gstreamer.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/gstreamer/lv_gstreamer.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/libjpeg_turbo</GroupName>
-          <Files>
             <File>
               <FileName>lv_libjpeg_turbo.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/libjpeg_turbo/lv_libjpeg_turbo.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/libpng</GroupName>
-          <Files>
             <File>
               <FileName>lv_libpng.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/libpng/lv_libpng.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/libwebp</GroupName>
-          <Files>
             <File>
               <FileName>lv_libwebp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/libwebp/lv_libwebp.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/lodepng</GroupName>
-          <Files>
             <File>
               <FileName>lodepng.c</FileName>
               <FileType>1</FileType>
@@ -3149,31 +2224,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/lodepng/lv_lodepng.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/lz4</GroupName>
-          <Files>
             <File>
               <FileName>lz4.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/lz4/lz4.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/nanovg</GroupName>
-          <Files>
             <File>
               <FileName>nanovg.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/nanovg/nanovg.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/qrcode</GroupName>
-          <Files>
             <File>
               <FileName>lv_qrcode.c</FileName>
               <FileType>1</FileType>
@@ -3184,31 +2244,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/qrcode/qrcodegen.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/rle</GroupName>
-          <Files>
             <File>
               <FileName>lv_rle.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/rle/lv_rle.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/rlottie</GroupName>
-          <Files>
             <File>
               <FileName>lv_rlottie.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/rlottie/lv_rlottie.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/svg</GroupName>
-          <Files>
             <File>
               <FileName>lv_svg.c</FileName>
               <FileType>1</FileType>
@@ -3234,11 +2279,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/svg/lv_svg_token.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/thorvg</GroupName>
-          <Files>
             <File>
               <FileName>tvgAccessor.cpp</FileName>
               <FileType>1</FileType>
@@ -3474,21 +2514,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/thorvg/tvgXmlParser.cpp</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/tiny_ttf</GroupName>
-          <Files>
             <File>
               <FileName>lv_tiny_ttf.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/tiny_ttf/lv_tiny_ttf.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/tjpgd</GroupName>
-          <Files>
             <File>
               <FileName>lv_tjpgd.c</FileName>
               <FileType>1</FileType>
@@ -3499,11 +2529,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/tjpgd/tjpgd.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/vg_lite_driver/lv_vg_lite_hal</GroupName>
-          <Files>
             <File>
               <FileName>lv_vg_lite_hal.c</FileName>
               <FileType>1</FileType>
@@ -3514,11 +2539,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/vg_lite_driver/lv_vg_lite_hal/vg_lite_os.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/vg_lite_driver/VGLite</GroupName>
-          <Files>
             <File>
               <FileName>vg_lite.c</FileName>
               <FileType>1</FileType>
@@ -3544,31 +2564,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/vg_lite_driver/VGLite/vg_lite_stroke.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/libs/vg_lite_driver/VGLiteKernel</GroupName>
-          <Files>
             <File>
               <FileName>vg_lite_kernel.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/libs/vg_lite_driver/VGLiteKernel/vg_lite_kernel.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src</GroupName>
-          <Files>
             <File>
               <FileName>lv_init.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/lv_init.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/misc/cache/class</GroupName>
-          <Files>
             <File>
               <FileName>lv_cache_lru_ll.c</FileName>
               <FileType>1</FileType>
@@ -3584,11 +2589,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/misc/cache/class/lv_cache_sc_da.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/misc/cache/instance</GroupName>
-          <Files>
             <File>
               <FileName>lv_image_cache.c</FileName>
               <FileType>1</FileType>
@@ -3599,11 +2599,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/misc/cache/instance/lv_image_header_cache.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/misc/cache</GroupName>
-          <Files>
             <File>
               <FileName>lv_cache.c</FileName>
               <FileType>1</FileType>
@@ -3614,11 +2609,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/misc/cache/lv_cache_entry.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/misc</GroupName>
-          <Files>
             <File>
               <FileName>lv_anim.c</FileName>
               <FileType>1</FileType>
@@ -3774,11 +2764,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/misc/lv_utils.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/osal</GroupName>
-          <Files>
             <File>
               <FileName>lv_cmsis_rtos2.c</FileName>
               <FileType>1</FileType>
@@ -3829,21 +2814,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/osal/lv_windows.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/others/file_explorer</GroupName>
-          <Files>
             <File>
               <FileName>lv_file_explorer.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/others/file_explorer/lv_file_explorer.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/others/fragment</GroupName>
-          <Files>
             <File>
               <FileName>lv_fragment.c</FileName>
               <FileType>1</FileType>
@@ -3854,21 +2829,11 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/others/fragment/lv_fragment_manager.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/others/translation</GroupName>
-          <Files>
             <File>
               <FileName>lv_translation.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/others/translation/lv_translation.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib/builtin</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem_core_builtin.c</FileName>
               <FileType>1</FileType>
@@ -3889,11 +2854,6 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/builtin/lv_tlsf.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib/clib</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem_core_clib.c</FileName>
               <FileType>1</FileType>
@@ -3909,31 +2869,16 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/clib/lv_string_clib.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/lv_mem.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib/micropython</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem_core_micropython.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/micropython/lv_mem_core_micropython.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib/rtthread</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem_core_rtthread.c</FileName>
               <FileType>1</FileType>
@@ -3949,61 +2894,31 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/rtthread/lv_string_rtthread.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/stdlib/uefi</GroupName>
-          <Files>
             <File>
               <FileName>lv_mem_core_uefi.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/stdlib/uefi/lv_mem_core_uefi.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/themes/default</GroupName>
-          <Files>
             <File>
               <FileName>lv_theme_default.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/themes/default/lv_theme_default.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/themes</GroupName>
-          <Files>
             <File>
               <FileName>lv_theme.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/themes/lv_theme.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/themes/mono</GroupName>
-          <Files>
             <File>
               <FileName>lv_theme_mono.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/themes/mono/lv_theme_mono.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/themes/simple</GroupName>
-          <Files>
             <File>
               <FileName>lv_theme_simple.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/themes/simple/lv_theme_simple.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/tick</GroupName>
-          <Files>
             <File>
               <FileName>lv_tick.c</FileName>
               <FileType>1</FileType>
@@ -4012,78 +2927,88 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>lvgl/src/widgets/3dtexture</GroupName>
+          <GroupName>LVGL_Widgets</GroupName>
           <Files>
+            <File>
+              <FileName>img_clothes.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/assets/img_clothes.c</FilePath>
+            </File>
+            <File>
+              <FileName>img_demo_widgets_avatar.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/assets/img_demo_widgets_avatar.c</FilePath>
+            </File>
+            <File>
+              <FileName>img_demo_widgets_needle.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/assets/img_demo_widgets_needle.c</FilePath>
+            </File>
+            <File>
+              <FileName>img_lvgl_logo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/assets/img_lvgl_logo.c</FilePath>
+            </File>
+            <File>
+              <FileName>lv_demo_widgets.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/lv_demo_widgets.c</FilePath>
+            </File>
+            <File>
+              <FileName>lv_demo_widgets_analytics.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_analytics.c</FilePath>
+            </File>
+            <File>
+              <FileName>lv_demo_widgets_components.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_components.c</FilePath>
+            </File>
+            <File>
+              <FileName>lv_demo_widgets_profile.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_profile.c</FilePath>
+            </File>
+            <File>
+              <FileName>lv_demo_widgets_shop.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../lvgl/demos/widgets/lv_demo_widgets_shop.c</FilePath>
+            </File>
             <File>
               <FileName>lv_3dtexture.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/3dtexture/lv_3dtexture.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/animimage</GroupName>
-          <Files>
             <File>
               <FileName>lv_animimage.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/animimage/lv_animimage.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/arc</GroupName>
-          <Files>
             <File>
               <FileName>lv_arc.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/arc/lv_arc.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/arclabel</GroupName>
-          <Files>
             <File>
               <FileName>lv_arclabel.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/arclabel/lv_arclabel.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/bar</GroupName>
-          <Files>
             <File>
               <FileName>lv_bar.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/bar/lv_bar.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/button</GroupName>
-          <Files>
             <File>
               <FileName>lv_button.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/button/lv_button.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/buttonmatrix</GroupName>
-          <Files>
             <File>
               <FileName>lv_buttonmatrix.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/buttonmatrix/lv_buttonmatrix.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/calendar</GroupName>
-          <Files>
             <File>
               <FileName>lv_calendar.c</FileName>
               <FileType>1</FileType>
@@ -4104,181 +3029,91 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/calendar/lv_calendar_header_dropdown.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/canvas</GroupName>
-          <Files>
             <File>
               <FileName>lv_canvas.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/canvas/lv_canvas.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/chart</GroupName>
-          <Files>
             <File>
               <FileName>lv_chart.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/chart/lv_chart.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/checkbox</GroupName>
-          <Files>
             <File>
               <FileName>lv_checkbox.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/checkbox/lv_checkbox.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/dropdown</GroupName>
-          <Files>
             <File>
               <FileName>lv_dropdown.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/dropdown/lv_dropdown.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/gif</GroupName>
-          <Files>
             <File>
               <FileName>lv_gif.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/gif/lv_gif.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/image</GroupName>
-          <Files>
             <File>
               <FileName>lv_image.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/image/lv_image.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/imagebutton</GroupName>
-          <Files>
             <File>
               <FileName>lv_imagebutton.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/imagebutton/lv_imagebutton.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/ime</GroupName>
-          <Files>
             <File>
               <FileName>lv_ime_pinyin.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/ime/lv_ime_pinyin.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/keyboard</GroupName>
-          <Files>
             <File>
               <FileName>lv_keyboard.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/keyboard/lv_keyboard.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/label</GroupName>
-          <Files>
             <File>
               <FileName>lv_label.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/label/lv_label.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/led</GroupName>
-          <Files>
             <File>
               <FileName>lv_led.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/led/lv_led.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/line</GroupName>
-          <Files>
             <File>
               <FileName>lv_line.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/line/lv_line.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/list</GroupName>
-          <Files>
             <File>
               <FileName>lv_list.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/list/lv_list.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/lottie</GroupName>
-          <Files>
             <File>
               <FileName>lv_lottie.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/lottie/lv_lottie.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/menu</GroupName>
-          <Files>
             <File>
               <FileName>lv_menu.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/menu/lv_menu.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/msgbox</GroupName>
-          <Files>
             <File>
               <FileName>lv_msgbox.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/msgbox/lv_msgbox.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/objx_templ</GroupName>
-          <Files>
             <File>
               <FileName>lv_objx_templ.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/objx_templ/lv_objx_templ.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/property</GroupName>
-          <Files>
             <File>
               <FileName>lv_animimage_properties.c</FileName>
               <FileType>1</FileType>
@@ -4404,121 +3239,61 @@
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/property/lv_textarea_properties.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/roller</GroupName>
-          <Files>
             <File>
               <FileName>lv_roller.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/roller/lv_roller.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/scale</GroupName>
-          <Files>
             <File>
               <FileName>lv_scale.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/scale/lv_scale.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/slider</GroupName>
-          <Files>
             <File>
               <FileName>lv_slider.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/slider/lv_slider.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/span</GroupName>
-          <Files>
             <File>
               <FileName>lv_span.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/span/lv_span.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/spinbox</GroupName>
-          <Files>
             <File>
               <FileName>lv_spinbox.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/spinbox/lv_spinbox.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/spinner</GroupName>
-          <Files>
             <File>
               <FileName>lv_spinner.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/spinner/lv_spinner.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/switch</GroupName>
-          <Files>
             <File>
               <FileName>lv_switch.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/switch/lv_switch.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/table</GroupName>
-          <Files>
             <File>
               <FileName>lv_table.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/table/lv_table.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/tabview</GroupName>
-          <Files>
             <File>
               <FileName>lv_tabview.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/tabview/lv_tabview.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/textarea</GroupName>
-          <Files>
             <File>
               <FileName>lv_textarea.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/textarea/lv_textarea.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/tileview</GroupName>
-          <Files>
             <File>
               <FileName>lv_tileview.c</FileName>
               <FileType>1</FileType>
               <FilePath>../lvgl/src/widgets/tileview/lv_tileview.c</FilePath>
             </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>lvgl/src/widgets/win</GroupName>
-          <Files>
             <File>
               <FileName>lv_win.c</FileName>
               <FileType>1</FileType>
@@ -4527,42 +3302,7 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>lvgl</GroupName>
-          <Files>
-            <File>
-              <FileName>lv_conf.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lv_conf.h</FilePath>
-            </File>
-            <File>
-              <FileName>lv_port_indev.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lv_port_indev.h</FilePath>
-            </File>
-            <File>
-              <FileName>lv_port_lcd_stm32.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lv_port_lcd_stm32.h</FilePath>
-            </File>
-            <File>
-              <FileName>lv_version.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lv_version.h</FilePath>
-            </File>
-            <File>
-              <FileName>lvgl.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lvgl.h</FilePath>
-            </File>
-            <File>
-              <FileName>lvgl_private.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\lvgl\lvgl_private.h</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
-          <GroupName>freertos</GroupName>
+          <GroupName>FreeRTOS</GroupName>
           <Files>
             <File>
               <FileName>croutine.c</FileName>
@@ -4616,14 +3356,79 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>STM32</GroupName>
+          <Files>
+            <File>
+              <FileName>startup_stm32f40_41xxx.s</FileName>
+              <FileType>2</FileType>
+              <FilePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Source\Templates\arm\startup_stm32f40_41xxx.s</FilePath>
+            </File>
+            <File>
+              <FileName>system_stm32f4xx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\CMSIS\Device\ST\STM32F4xx\Source\Templates\system_stm32f4xx.c</FilePath>
+            </File>
+            <File>
+              <FileName>misc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\misc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_rcc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_rcc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_gpio.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_gpio.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_usart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_usart.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_rtc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_rtc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_pwr.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_pwr.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_dma.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_dma.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_flash.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_flash.c</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
   </Targets>
 
   <RTE>
-    <apis />
-    <components />
-    <files />
+    <apis/>
+    <components/>
+    <files/>
   </RTE>
 
   <LayerInfo>

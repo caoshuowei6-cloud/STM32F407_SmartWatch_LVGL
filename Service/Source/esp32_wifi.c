@@ -13,6 +13,8 @@
 #include "cJSON.h"
 #include "aht20.h"
 #include "mpu6050.h"
+#include "adc_battery.h"
+#include "history_storage.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -34,6 +36,10 @@ static bool s_esp32_online = false;
 static char s_wifi_ip[20] = {0};
 static uint8_t s_tcp_client_id = 0;
 static bool s_tcp_client_connected = false;
+
+/* 阿里云 EMQX MQTT 客户端状态与自愈重连时间戳 */
+static bool s_mqtt_connected = false;
+static uint32_t s_last_mqtt_reconnect_tick = 0;
 
 /* ============================================================================
    丢包与通信质量指标获取
@@ -446,7 +452,10 @@ static bool ESP32_StartTCPServer(uint16_t port)
 
     if (ok)
     {
-        s_wifi_state = WIFI_STATE_SERVER_READY;
+        if (s_wifi_state != WIFI_STATE_MQTT_CONNECTED)
+        {
+            s_wifi_state = WIFI_STATE_SERVER_READY;
+        }
         printf("[ESP32] TCP Server started on port %d.\r\n", port);
     }
     return ok;
@@ -523,6 +532,162 @@ bool ESP32_SendTCPResponse(uint8_t client_id, const char *resp)
     return ESP32_TCPSend(client_id, (const uint8_t *)resp, (uint16_t)strlen(resp));
 }
 
+/* ============================================================================
+   阿里云 EMQX 原生 MQTT 客户端驱动 (基于 ESP-AT 硬件 MQTT 协议栈)
+   ============================================================================ */
+
+bool ESP32_MQTT_IsConnected(void)
+{
+    return s_mqtt_connected;
+}
+
+bool ESP32_MQTT_Subscribe(const char *topic, uint8_t qos)
+{
+    if (!s_mqtt_connected || topic == NULL) return false;
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "AT+MQTTSUB=0,\"%s\",%d\r\n", topic, qos);
+    return ESP32_SendCmd(cmd, "OK", 3000);
+}
+
+bool ESP32_MQTT_Connect(const char *broker_ip, uint16_t port, const char *client_id)
+{
+    char cmd[160];
+    if (broker_ip == NULL || client_id == NULL) return false;
+
+    printf("\r\n[MQTT] Initializing MQTT client session...\r\n");
+    printf("[MQTT] Broker: %s:%d | ClientID: %s\r\n", broker_ip, port, client_id);
+
+    /* 1. 先关闭可能存在的旧 MQTT 链接，确保句柄干净 */
+    ESP32_SendCmd("AT+MQTTCLEAN=0\r\n", "OK", 1000);
+
+    /* 2. 配置客户端属性 (scheme=1: TCP非加密, keepalive=60s) */
+    snprintf(cmd, sizeof(cmd), "AT+MQTTUSERCFG=0,1,\"%s\",\"\",\"\",0,0,\"\"\r\n", client_id);
+    if (!ESP32_SendCmd(cmd, "OK", 2000))
+    {
+        printf("[MQTT] AT+MQTTUSERCFG failed!\r\n");
+        return false;
+    }
+
+    /* 3. 发起连接 (reconnect=1: 开启 ESP32 底层硬件自动断线重连) */
+    snprintf(cmd, sizeof(cmd), "AT+MQTTCONN=0,\"%s\",%d,1\r\n", broker_ip, port);
+    if (!ESP32_SendCmd(cmd, "OK", 8000))
+    {
+        printf("[MQTT] AT+MQTTCONN failed or connection refused!\r\n");
+        s_mqtt_connected = false;
+        return false;
+    }
+
+    s_mqtt_connected = true;
+    s_wifi_state = WIFI_STATE_MQTT_CONNECTED;
+
+    printf("\r\n=======================================================\r\n");
+    printf("   [MQTT SUCCESS] Connected to Alibaba Cloud EMQX!     \r\n");
+    printf("   Broker Host : %s:%d                                 \r\n", broker_ip, port);
+    printf("   Client ID   : %s                                    \r\n", client_id);
+    printf("=======================================================\r\n\r\n");
+
+    /* 4. 自动订阅云端下行控制主题 */
+    snprintf(cmd, sizeof(cmd), "AT+MQTTSUB=0,\"%s\",1\r\n", MQTT_TOPIC_CMD);
+    if (ESP32_SendCmd(cmd, "OK", 3000))
+    {
+        printf("[MQTT] Subscribed to command topic: \"%s\" (QoS 1)\r\n", MQTT_TOPIC_CMD);
+    }
+
+    return true;
+}
+
+bool ESP32_MQTT_Publish(const char *topic, const char *payload, uint8_t qos)
+{
+    if (!s_mqtt_connected || topic == NULL || payload == NULL) return false;
+
+    uint16_t len = (uint16_t)strlen(payload);
+    char cmd[160];
+    snprintf(cmd, sizeof(cmd), "AT+MQTTPUBRAW=0,\"%s\",%u,%d,0\r\n", topic, len, qos);
+
+    /* 1. 发送 AT+MQTTPUBRAW 指令 */
+    ESP32_SendRaw((const uint8_t *)cmd, (uint16_t)strlen(cmd));
+
+    /* 2. 等待 '>' 提示符 (超时 1 秒) */
+    TickType_t start = xTaskGetTickCount();
+    bool got_prompt = false;
+    while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(1000))
+    {
+        uint8_t b;
+        if (RingBuffer_Read(&s_wifi_rb, &b, 1) > 0)
+        {
+            if (b == '>')
+            {
+                got_prompt = true;
+                break;
+            }
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(2));
+        }
+    }
+
+    if (!got_prompt)
+    {
+        return false;
+    }
+
+    /* 3. 裸流发送数据正文 */
+    ESP32_SendRaw((const uint8_t *)payload, len);
+
+    /* 4. 等待 +MQTTPUB:OK (超时 3 秒) */
+    TickType_t start_ack = xTaskGetTickCount();
+    while ((xTaskGetTickCount() - start_ack) < pdMS_TO_TICKS(3000))
+    {
+        uint8_t ack_buf[64];
+        uint16_t r = RingBuffer_Read(&s_wifi_rb, ack_buf, sizeof(ack_buf) - 1);
+        if (r > 0)
+        {
+            ack_buf[r] = '\0';
+            if (strstr((char *)ack_buf, "+MQTTPUB:OK") != NULL || strstr((char *)ack_buf, "OK\r\n") != NULL)
+            {
+                return true;
+            }
+            if (strstr((char *)ack_buf, "FAIL") != NULL || strstr((char *)ack_buf, "ERROR") != NULL)
+            {
+                return false;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+    return false;
+}
+
+bool ESP32_MQTT_SyncHistory(void)
+{
+    if (!s_mqtt_connected) return false;
+    if (History_Storage_GetUnsyncedCount() == 0) return false;
+
+    history_record_t rec;
+    if (History_Storage_GetNextUnsynced(&rec))
+    {
+        char json[192];
+        snprintf(json, sizeof(json),
+                 "{\"ts\":%u,\"steps\":%d,\"delta\":%d,\"temp\":%.1f,\"humi\":%.1f,\"bat\":%u,\"act\":%u}",
+                 (unsigned int)rec.timestamp,
+                 (int)rec.step_total,
+                 (int)rec.step_delta,
+                 (float)rec.temp_x10 / 10.0f,
+                 (float)rec.humi_x10 / 10.0f,
+                 (unsigned int)rec.bat_pct,
+                 (unsigned int)rec.activity_type);
+
+        if (ESP32_MQTT_Publish(MQTT_TOPIC_HISTORY, json, 1))
+        {
+            History_Storage_AckUploaded();
+            printf("[History] Synced offline record (TS: %u, Steps: %d) to Cloud!\r\n",
+                   (unsigned int)rec.timestamp, (int)rec.step_total);
+            return true;
+        }
+    }
+    return false;
+}
+
 static void ESP32_CheckClientEvent(void)
 {
     static uint8_t buf[1024];
@@ -532,6 +697,44 @@ static void ESP32_CheckClientEvent(void)
     if (len > 0)
     {
         buf[len] = '\0';
+
+        /* 0. 检查 MQTT 下行消息: +MQTTSUBRECV:<link_id>,"<topic>",<len>,<data> */
+        char *sub_pos = strstr((char *)buf, "+MQTTSUBRECV:");
+        if (sub_pos != NULL)
+        {
+            printf("\r\n[MQTT RECV] Inbound packet: %s\r\n", sub_pos);
+            char *p_json = strchr(sub_pos, '{');
+            if (p_json != NULL)
+            {
+                cJSON *root = cJSON_Parse(p_json);
+                if (root != NULL)
+                {
+                    cJSON *cmd_item = cJSON_GetObjectItem(root, "cmd");
+                    if (cmd_item && cJSON_IsString(cmd_item))
+                    {
+                        if (strcmp(cmd_item->valuestring, "ping") == 0)
+                        {
+                            ESP32_MQTT_Publish(MQTT_TOPIC_TELEMETRY, "{\"status\":\"pong\"}", 1);
+                            printf("[MQTT CMD] Ping requested, answered pong.\r\n");
+                        }
+                        else if (strcmp(cmd_item->valuestring, "vibrate") == 0 ||
+                                 strcmp(cmd_item->valuestring, "find_watch") == 0)
+                        {
+                            printf("\r\n>>> [ALERT] CLOUD TRIGGERED FIND WATCH / VIBRATION! <<<\r\n\r\n");
+                        }
+                    }
+                    cJSON_Delete(root);
+                }
+            }
+        }
+
+        /* 检查 MQTT 断开连接事件 */
+        if (strstr((char *)buf, "+MQTTDISCONNECTED") != NULL)
+        {
+            s_mqtt_connected = false;
+            s_wifi_state = WIFI_STATE_CONNECTED;
+            printf("[MQTT] Broker disconnected!\r\n");
+        }
 
         /* 1. 检查客户端连接事件: "<id>,CONNECT" 或 "+LINK_CONN:<id>" */
         char *conn_pos = strstr((char *)buf, ",CONNECT");
@@ -650,8 +853,6 @@ static void ESP32_CheckClientEvent(void)
 
 bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, float roll)
 {
-    if (!s_tcp_client_connected) return false;
-
     /* 1. 动态创建 cJSON 根对象树 */
     cJSON *root = cJSON_CreateObject();
     if (!root) return false;
@@ -662,27 +863,34 @@ bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, 
     cJSON_AddNumberToObject(root, "steps", steps);
     cJSON_AddNumberToObject(root, "pitch", (double)((int)(pitch * 10)) / 10.0);
     cJSON_AddNumberToObject(root, "roll",  (double)((int)(roll * 10)) / 10.0);
+    cJSON_AddNumberToObject(root, "bat",   (double)ADC_Battery_GetPercent());
 
     /* 3. 序列化为压缩格式 JSON 文本行 */
     char *json_str = cJSON_PrintUnformatted(root);
     bool ok = false;
     if (json_str)
     {
-        char send_buf[192];
-        snprintf(send_buf, sizeof(send_buf), "%s\r\n", json_str);
-        ok = ESP32_TCPSend(s_tcp_client_id, (const uint8_t *)send_buf, (uint16_t)strlen(send_buf));
+        /* 优先通过 MQTT 遥测通道上报云端 */
+        if (s_mqtt_connected)
+        {
+            ok = ESP32_MQTT_Publish(MQTT_TOPIC_TELEMETRY, json_str, 0);
+        }
 
-        /* 4. 释放序列化字符串缓冲 (挂接 FreeRTOS 内存必须调用 vPortFree) */
+        /* 兼容向本地局域网已连接的 TCP Client 推送 */
+        if (s_tcp_client_connected)
+        {
+            char send_buf[256];
+            snprintf(send_buf, sizeof(send_buf), "%s\r\n", json_str);
+            ESP32_TCPSend(s_tcp_client_id, (const uint8_t *)send_buf, (uint16_t)strlen(send_buf));
+        }
+
+        /* 4. 释放序列化字符串缓冲 (挂接 FreeRTOS 堆内存) */
         vPortFree(json_str);
     }
 
     /* 5. 递归销毁 cJSON 树节点，严密杜绝任何内存泄漏 */
     cJSON_Delete(root);
 
-    if (!ok)
-    {
-        s_tcp_client_connected = false;
-    }
     return ok;
 }
 
@@ -709,6 +917,7 @@ typedef enum
     TASK_STATE_INIT = 0,
     TASK_STATE_CONNECT_HOTSPOT,
     TASK_STATE_SYNC_NTP,
+    TASK_STATE_CONNECT_MQTT,
     TASK_STATE_START_SERVER,
     TASK_STATE_RUNNING
 } wifi_task_state_t;
@@ -717,6 +926,7 @@ void ESP32_WiFi_TaskLoop(void)
 {
     static wifi_task_state_t s_curr_step = TASK_STATE_INIT;
     static uint32_t s_last_upload_tick = 0;
+    static uint32_t s_last_history_sync_tick = 0;
     static uint32_t s_last_ntp_sync_tick = 0;
     static uint8_t s_init_retries = 0;
 
@@ -775,11 +985,27 @@ void ESP32_WiFi_TaskLoop(void)
             if (ESP32_SyncNTPTime())
             {
                 s_last_ntp_sync_tick = xTaskGetTickCount();
+                s_curr_step = TASK_STATE_CONNECT_MQTT;
+            }
+            else
+            {
+                printf("[Task_WiFi] NTP sync not ready yet, proceeding to MQTT connection...\r\n");
+                s_curr_step = TASK_STATE_CONNECT_MQTT;
+            }
+            break;
+        }
+
+        case TASK_STATE_CONNECT_MQTT:
+        {
+            printf("\r\n[Task_WiFi] Connecting to Alibaba Cloud MQTT Broker (%s:%d)...\r\n",
+                   MQTT_BROKER_HOST, MQTT_BROKER_PORT);
+            if (ESP32_MQTT_Connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, MQTT_CLIENT_ID))
+            {
                 s_curr_step = TASK_STATE_START_SERVER;
             }
             else
             {
-                printf("[Task_WiFi] NTP sync not ready yet, proceeding to start server and will retry later...\r\n");
+                printf("[Task_WiFi] Initial MQTT connection deferred, will retry in background...\r\n");
                 s_curr_step = TASK_STATE_START_SERVER;
             }
             break;
@@ -794,14 +1020,14 @@ void ESP32_WiFi_TaskLoop(void)
 
         case TASK_STATE_RUNNING:
         {
-            /* 1. 检查客户端连接/断开事件 */
+            /* 1. 检查客户端事件与 MQTT 下行消息 */
             ESP32_CheckClientEvent();
 
-            /* 2. 定期 1 秒向连接的客户端上报数据 (OTA 期间暂停上报，独占带宽防冲突) */
+            /* 2. 定期 1 秒向云端 MQTT 及连接的客户端上报实时遥测数据 */
             if ((xTaskGetTickCount() - s_last_upload_tick) >= pdMS_TO_TICKS(1000))
             {
                 s_last_upload_tick = xTaskGetTickCount();
-                if (s_tcp_client_connected && OTA_GetState() == OTA_STATE_IDLE)
+                if ((s_mqtt_connected || s_tcp_client_connected) && OTA_GetState() == OTA_STATE_IDLE)
                 {
                     float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
                     MPU6050_GetAttitude(&pitch, &roll, &yaw);
@@ -812,7 +1038,28 @@ void ESP32_WiFi_TaskLoop(void)
                 }
             }
 
-            /* 3. 每一小时 (3600s) 自动重新校准一次 NTP 时间 */
+            /* 3. 异步流式同步 W25Q64 离线健康历史数据 (每 3 秒同步一条，平滑不挤占带宽) */
+            if (s_mqtt_connected && OTA_GetState() == OTA_STATE_IDLE)
+            {
+                if ((xTaskGetTickCount() - s_last_history_sync_tick) >= pdMS_TO_TICKS(3000))
+                {
+                    s_last_history_sync_tick = xTaskGetTickCount();
+                    ESP32_MQTT_SyncHistory();
+                }
+            }
+
+            /* 4. MQTT 断线自愈守护：若意外掉线，每 10 秒自动重连一次 */
+            if (!s_mqtt_connected && s_wifi_state >= WIFI_STATE_CONNECTED)
+            {
+                if ((xTaskGetTickCount() - s_last_mqtt_reconnect_tick) >= pdMS_TO_TICKS(10000))
+                {
+                    s_last_mqtt_reconnect_tick = xTaskGetTickCount();
+                    printf("[MQTT Watchdog] Attempting automatic reconnection to Broker...\r\n");
+                    ESP32_MQTT_Connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, MQTT_CLIENT_ID);
+                }
+            }
+
+            /* 5. 每一小时 (3600s) 自动重新校准一次 NTP 时间 */
             if ((xTaskGetTickCount() - s_last_ntp_sync_tick) >= pdMS_TO_TICKS(3600000))
             {
                 s_last_ntp_sync_tick = xTaskGetTickCount();

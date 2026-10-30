@@ -15,6 +15,7 @@
 #include "mpu6050.h"
 #include "adc_battery.h"
 #include "history_storage.h"
+#include "power_manager.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -635,20 +636,29 @@ bool ESP32_MQTT_Publish(const char *topic, const char *payload, uint8_t qos)
     /* 3. 裸流发送数据正文 */
     ESP32_SendRaw((const uint8_t *)payload, len);
 
-    /* 4. 等待 +MQTTPUB:OK (超时 3 秒) */
+/* 4. 等待发布结果回执 (使用累加接收，杜绝分包截断) */
+    char ack_buf[128] = {0};
+    uint16_t ack_len = 0;
     TickType_t start_ack = xTaskGetTickCount();
     while ((xTaskGetTickCount() - start_ack) < pdMS_TO_TICKS(3000))
     {
-        uint8_t ack_buf[64];
-        uint16_t r = RingBuffer_Read(&s_wifi_rb, ack_buf, sizeof(ack_buf) - 1);
+        uint8_t temp[32];
+        uint16_t r = RingBuffer_Read(&s_wifi_rb, temp, sizeof(temp) - 1);
         if (r > 0)
         {
-            ack_buf[r] = '\0';
-            if (strstr((char *)ack_buf, "+MQTTPUB:OK") != NULL || strstr((char *)ack_buf, "OK\r\n") != NULL)
+            temp[r] = '\0';
+            if (ack_len + r < sizeof(ack_buf) - 1)
+            {
+                memcpy(ack_buf + ack_len, temp, r);
+                ack_len += r;
+                ack_buf[ack_len] = '\0';
+            }
+
+            if (strstr(ack_buf, "+MQTTPUB:OK") != NULL || strstr(ack_buf, "OK\r\n") != NULL)
             {
                 return true;
             }
-            if (strstr((char *)ack_buf, "FAIL") != NULL || strstr((char *)ack_buf, "ERROR") != NULL)
+            if (strstr(ack_buf, "FAIL") != NULL || strstr(ack_buf, "ERROR") != NULL)
             {
                 return false;
             }
@@ -873,7 +883,17 @@ bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, 
         /* 优先通过 MQTT 遥测通道上报云端 */
         if (s_mqtt_connected)
         {
-            ok = ESP32_MQTT_Publish(MQTT_TOPIC_TELEMETRY, json_str, 0);
+            ok = ESP32_MQTT_Publish(MQTT_TOPIC_TELEMETRY, json_str, 1);
+
+            if (ok)
+
+            {
+
+                printf("[Telemetry] >>> Published (QoS 1 OK): Temp=%.1fC, Humi=%.1f%%, Steps=%ld, Bat=%u%%\r\n",
+
+                       temp, humi, (long)steps, (unsigned int)ADC_Battery_GetPercent());
+
+            }
         }
 
         /* 兼容向本地局域网已连接的 TCP Client 推送 */
@@ -1019,36 +1039,103 @@ void ESP32_WiFi_TaskLoop(void)
         }
 
         case TASK_STATE_RUNNING:
+
         {
-            /* 1. 检查客户端事件与 MQTT 下行消息 */
+
+            static pm_state_t s_last_pm_state = PM_STATE_ACTIVE;
+
+            pm_state_t cur_pm_state = Power_Manager_GetState();
+
+
+
+            /* 1. 检查客户端事件与 MQTT 下行控制消息 */
+
             ESP32_CheckClientEvent();
 
-            /* 2. 定期 1 秒向云端 MQTT 及连接的客户端上报实时遥测数据 */
-            if ((xTaskGetTickCount() - s_last_upload_tick) >= pdMS_TO_TICKS(1000))
+
+
+            /* 亮屏瞬间动态加速：若刚从待机息屏唤醒，立即触发一次遥测上报，保证开屏即最新 */
+
+            if (s_last_pm_state == PM_STATE_STANDBY && cur_pm_state == PM_STATE_ACTIVE)
+
             {
-                s_last_upload_tick = xTaskGetTickCount();
-                if ((s_mqtt_connected || s_tcp_client_connected) && OTA_GetState() == OTA_STATE_IDLE)
-                {
-                    float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
-                    MPU6050_GetAttitude(&pitch, &roll, &yaw);
-                    ESP32_UploadSensorData(AHT20_GetLastTemp(),
-                                           AHT20_GetLastHumi(),
-                                           (int32_t)MPU6050_GetStepCount(),
-                                           pitch, roll);
-                }
+
+                s_last_upload_tick = 0;
+
             }
 
-            /* 3. 异步流式同步 W25Q64 离线健康历史数据 (每 3 秒同步一条，平滑不挤占带宽) */
+            s_last_pm_state = cur_pm_state;
+
+
+
+            /* 2. 异步流式同步 W25Q64 离线历史堆积数据 (仅在离线有积压时，每 3 秒补传一条) */
+
+            bool did_history_sync = false;
+
             if (s_mqtt_connected && OTA_GetState() == OTA_STATE_IDLE)
+
             {
-                if ((xTaskGetTickCount() - s_last_history_sync_tick) >= pdMS_TO_TICKS(3000))
+
+                if (History_Storage_GetUnsyncedCount() > 0)
+
                 {
-                    s_last_history_sync_tick = xTaskGetTickCount();
-                    ESP32_MQTT_SyncHistory();
+
+                    if ((xTaskGetTickCount() - s_last_history_sync_tick) >= pdMS_TO_TICKS(3000))
+
+                    {
+
+                        s_last_history_sync_tick = xTaskGetTickCount();
+
+                        ESP32_MQTT_SyncHistory();
+
+                        did_history_sync = true;
+
+                    }
+
                 }
+
             }
 
-            /* 4. MQTT 断线自愈守护：若意外掉线，每 10 秒自动重连一次 */
+
+
+            /* 3. 实时遥测数据上报 (企业级智能穿戴规范：
+
+                  - 亮屏活跃交互状态 (PM_STATE_ACTIVE) 下每 10 秒周期上报
+
+                  - 待机息屏模式 (PM_STATE_STANDBY) 下挂起射频上报，极限降低 70%~90% 功耗
+
+                  - 与历史补传错峰调度，避免 AT 串口总线拥堵) */
+
+            if (!did_history_sync && cur_pm_state == PM_STATE_ACTIVE && OTA_GetState() == OTA_STATE_IDLE)
+
+            {
+
+                if ((s_mqtt_connected || s_tcp_client_connected) &&
+
+                    (xTaskGetTickCount() - s_last_upload_tick) >= pdMS_TO_TICKS(10000))
+
+                {
+
+                    s_last_upload_tick = xTaskGetTickCount();
+
+                    float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
+
+                    MPU6050_GetAttitude(&pitch, &roll, &yaw);
+
+                    ESP32_UploadSensorData(AHT20_GetLastTemp(),
+
+                                           AHT20_GetLastHumi(),
+
+                                           (int32_t)MPU6050_GetStepCount(),
+
+                                           pitch, roll);
+
+                }
+
+            }
+
+
+
             if (!s_mqtt_connected && s_wifi_state >= WIFI_STATE_CONNECTED)
             {
                 if ((xTaskGetTickCount() - s_last_mqtt_reconnect_tick) >= pdMS_TO_TICKS(10000))

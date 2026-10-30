@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F40_41xxx</Define>
               <Undefine></Undefine>
-              <IncludePath>..\Include;..\..\STM32\CMSIS\Device\ST\STM32F4xx\Include;..\..\STM32\CMSIS\Include;..\..\STM32\STM32F4xx_StdPeriph_Driver\inc;..\..\MY</IncludePath>
+              <IncludePath>..\Include;..\..\STM32\CMSIS\Device\ST\STM32F4xx\Include;..\..\STM32\CMSIS\Include;..\..\STM32\STM32F4xx_StdPeriph_Driver\inc;..\..\App\Include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -433,6 +433,11 @@
               <FileName>stm32f4xx_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_flash.c</FilePath>
+            </File>
+            <File>
+              <FileName>stm32f4xx_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\STM32\STM32F4xx_StdPeriph_Driver\src\stm32f4xx_spi.c</FilePath>
             </File>
             <File>
               <FileName>stm32f4xx_gpio.c</FileName>

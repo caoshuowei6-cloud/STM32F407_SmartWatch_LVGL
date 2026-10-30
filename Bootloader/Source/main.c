@@ -29,7 +29,7 @@ int main(void)
     /* 2. NVIC 优先级分组配置为 4 (必须与 APP 保持一致) */
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
-    /* 3. 初始化调试串口 (USART1 921600 8N1 PA9/PA10) */
+    /* 3. 初始化调试串口 (USART1 921600 8N1 PA9/PA10，与 APP USART1_BaudRate 严格一致) */
     Boot_Uart_Init(921600);
 
     /* 4. 打印开机横幅 */

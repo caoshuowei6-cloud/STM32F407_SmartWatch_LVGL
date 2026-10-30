@@ -16,6 +16,7 @@
 #include "stm32f4xx_pwr.h"
 #include "stm32f4xx_rcc.h"
 #include "stm32f4xx_rtc.h"
+#include "stm32f4xx_usart.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "delay.h"
@@ -390,13 +391,19 @@ void OTA_SafeReboot(void)
 {
     printf("[OTA] Safe reboot sequence initiating...\r\n");
 
-    /* 1. 挂起调度并全局关闭中断，防止硬件处于未知时序 */
+    /* 等待串口 1 缓冲区完全清空发完，确保 PC 端完整收到重启日志 */
+    while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);
+
+    /* 挂起调度并全局关闭中断 */
     __disable_irq();
 
-    /* 2. 简短延时确保串口与总线电平稳定 */
-    Delay_ms(100);
+    /* 纯 CPU 寄存器空循环延时 20ms，严禁调用依赖 SysTick 中断的 Delay_ms */
+    for (volatile uint32_t i = 0; i < 500000; i++)
+    {
+        __NOP();
+    }
 
-    /* 3. 触发 Cortex-M4 内核级软复位 */
+    /* 触发 Cortex-M4 内核级软复位，100% 自动秒级重启进入 Bootloader */
     NVIC_SystemReset();
 }
 

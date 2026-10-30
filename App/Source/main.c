@@ -1,4 +1,4 @@
-﻿/**
+/**
   ******************************************************************************
   * @file    main.c
   * @brief   STM32F407 + LVGL 9 手表主程序（FreeRTOS V10.4.3 多任务分层架构）
@@ -26,6 +26,7 @@
 #include "power_manager.h"
 #include "param_storage.h"
 #include "ota_manager.h"
+#include "version.h"
 #include "cm_backtrace.h"
 #include "w25qxx.h"
 #include "history_storage.h"
@@ -125,16 +126,16 @@ static void Task_UI(void *pvParameters)
                 if (key_val != 0)
                 {
                     /* 企业�?OTA 互斥保护：空中升级固件接收期间全面锁定按键，防止抢占 CPU 与总线冲突 */
-                    if (OTA_GetState() == OTA_STATE_RECEIVING)
-                    {
-                        printf("[OTA Lock] Key %d blocked! Firmware upgrade in progress.\r\n", key_val);
-                        continue;
-                    }
-
-                    /* 低功耗电源管理：若息屏则立即点亮背光并拦截本次按键防误触 */
-                    if (Power_Manager_OnKey(key_val))
-                    {
-                        continue;
+                                        /* 1. 低功耗电源管理：优先允许按键点亮屏幕，保证升级期间随时能看表盘与状态 */
+                    if (Power_Manager_OnKey(key_val))
+                    {
+                        continue;
+                    }
+
+                    /* 2. 外部 Flash 暂存期间：放行按键操作与 UI 响应，并提示后台下载中 */
+                    if (OTA_GetState() == OTA_STATE_RECEIVING)
+                    {
+                        printf("[OTA Active] Key %d processed. Firmware streaming in background to W25Q64.\r\n", key_val);
                     }
                     printf("[KeyQueue] Recv: %d\r\n", key_val);
                     UI_Watch_HandleKey(key_val);
@@ -298,7 +299,7 @@ int main(void)
     LED_Init();         /* PC13 绿灯 (低电平亮) */
     KEY_Init();         /* 按键初始�?(PB1, PA6, PA4, PA15) */
     Usart_Config();
-    cm_backtrace_init("STM32F407_SmartWatch", "V1.0", "V4.0_AES");     /* USART1 115200 8N1 */
+    cm_backtrace_init("STM32F407_SmartWatch", "V1.0", FIRMWARE_VERSION_STR);     /* USART1 115200 8N1 */
 
     RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始�?(LSE/LSI 自动容错) */
     ADC_Battery_Init(); /* PA0 电池 12-bit ADC 初始�?*/
@@ -313,7 +314,8 @@ int main(void)
     History_Storage_Init();   /* 读取 ID 与测试扇区自检 */
 
     printf("\r\n=======================================================\r\n");
-    printf("   STM32F407 SmartWatch [V3.0 OTA Firmware Online!]     \r\n");
+    printf("   STM32F407 SmartWatch [Firmware " FIRMWARE_VERSION_STR " Online!]     \r\n");
+    printf("   Build Timestamp: %s %s                       \r\n", FIRMWARE_BUILD_DATE, FIRMWARE_BUILD_TIME);
     printf("   Core Clock: %u MHz | RTOS Heap: %u KB                \r\n",
            (unsigned int)(SystemCoreClock / 1000000),
            (unsigned int)(configTOTAL_HEAP_SIZE / 1024));

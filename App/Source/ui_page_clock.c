@@ -9,6 +9,7 @@
 #include "rtc_f407.h"
 #include "adc_battery.h"
 #include "mpu6050.h"
+#include "version.h"
 #include <stdio.h>
 
 static lv_obj_t * s_clock_time_label = NULL;
@@ -99,10 +100,10 @@ lv_obj_t * ui_page_clock_create(lv_obj_t * parent)
     lv_obj_set_style_text_color(s_label_bat, lv_color_hex(0x10B981), LV_PART_MAIN);
     lv_obj_align(s_label_bat, LV_ALIGN_RIGHT_MID, 0, 0);
 
-    /* OTA 新固件验证标记: V4.0 荧光绿高亮居中徽标 (AES-128 密文空中升级验证版) */
+    /* OTA 新固件验证标记: 屏幕顶部居中徽标 (动态绑定 version.h，天蓝色高亮显示) */
     lv_obj_t * label_ver = lv_label_create(top_box);
-    lv_label_set_text(label_ver, "V4.0 AES");
-    lv_obj_set_style_text_color(label_ver, lv_color_hex(0x10B981), LV_PART_MAIN); /* 荧光绿色 */
+    lv_label_set_text(label_ver, FIRMWARE_VERSION_STR);
+    lv_obj_set_style_text_color(label_ver, lv_color_hex(0x38BDF8), LV_PART_MAIN); /* 天蓝色 */
     lv_obj_align(label_ver, LV_ALIGN_CENTER, 0, 0);
 
     /* 2. 中央大卡片 (216x104, 不透明深色底) */

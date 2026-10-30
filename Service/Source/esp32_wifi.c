@@ -21,6 +21,7 @@
 #include "semphr.h"
 #include "rtc_f407.h"
 #include "delay.h"
+#include "version.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -868,6 +869,7 @@ bool ESP32_UploadSensorData(float temp, float humi, int32_t steps, float pitch, 
     if (!root) return false;
 
     /* 2. 结构化挂载传感器物模型属性 (保留1位小数) */
+    cJSON_AddStringToObject(root, "ver", FIRMWARE_VERSION_STR);
     cJSON_AddNumberToObject(root, "temp",  (double)((int)(temp * 10)) / 10.0);
     cJSON_AddNumberToObject(root, "humi",  (double)((int)(humi * 10)) / 10.0);
     cJSON_AddNumberToObject(root, "steps", steps);

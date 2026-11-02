@@ -10,6 +10,7 @@
 #include "w25qxx.h"
 #include "mpu6050.h"
 #include "esp32_wifi.h"
+#include "key.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <stdio.h>
@@ -73,6 +74,7 @@ void Power_Manager_Sleep(void)
         /* 4. ESP32-C3 进入低功耗 Modem-Sleep (保持连网，射频周期性休眠，功耗降至 3~10mA) */
         ESP32_WiFi_EnterSleep();
 
+        KEY_DrainWakeupEvent();
         s_pm_state = PM_STATE_STANDBY;
         printf("[PowerManager] Standby Active: LCD Sleep, Gyro Off, Flash Sleep. Power saved >85%%!\r\n");
     }

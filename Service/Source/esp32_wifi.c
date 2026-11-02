@@ -944,6 +944,36 @@ typedef enum
     TASK_STATE_RUNNING
 } wifi_task_state_t;
 
+/* ============================================================================
+   ESP32-C3 自动 Modem-Sleep 休眠与唤醒控制
+   ============================================================================ */
+static bool s_wifi_sleep_mode = false;
+
+void ESP32_WiFi_EnterSleep(void)
+{
+    if (s_esp32_online && !s_wifi_sleep_mode)
+    {
+        /* 发送 AT+SLEEP=1 启用自动 Modem-Sleep (保持连网，射频周期性休眠，功耗压降至 ~3-10mA) */
+        ESP32_SendCmd("AT+SLEEP=1\r\n", "OK", 500);
+        s_wifi_sleep_mode = true;
+    }
+}
+
+void ESP32_WiFi_ExitSleep(void)
+{
+    if (s_esp32_online && s_wifi_sleep_mode)
+    {
+        /* 唤醒 ESP32 恢复全功能活动模式 */
+        ESP32_SendCmd("AT+SLEEP=0\r\n", "OK", 500);
+        s_wifi_sleep_mode = false;
+    }
+}
+
+bool ESP32_WiFi_IsSleeping(void)
+{
+    return s_wifi_sleep_mode;
+}
+
 void ESP32_WiFi_TaskLoop(void)
 {
     static wifi_task_state_t s_curr_step = TASK_STATE_INIT;

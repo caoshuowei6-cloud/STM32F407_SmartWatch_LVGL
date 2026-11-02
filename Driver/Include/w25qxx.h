@@ -78,6 +78,11 @@ void     W25QXX_Write_Page(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByt
 void     W25QXX_Write_NoCheck(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
 void     W25QXX_Write(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
 
+/* 低功耗深度休眠与唤醒接口 */
+void     W25QXX_PowerDown(void);
+void     W25QXX_Wakeup(void);
+bool     W25QXX_IsPowerDown(void);
+
 /* 自动化硬件校验测试：读取 ID、擦除一个测试扇区并写入测试魔数，读回校验 */
 bool     W25QXX_SelfTest(void);
 

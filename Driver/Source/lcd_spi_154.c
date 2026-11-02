@@ -1357,3 +1357,53 @@ void 	LCD_DrawImage(uint16_t x,uint16_t y,uint16_t width,uint16_t height,const u
 }
 
 
+
+
+/* ============================================================================
+   ST7789 屏幕深度休眠与唤醒控制 (低功耗管理引擎)
+   ============================================================================ */
+static uint8_t s_lcd_is_sleeping = 0;
+
+void LCD_EnterSleep(void)
+{
+    if (!s_lcd_is_sleeping)
+    {
+        /* 1. 先关闭背光电源 */
+        LCD_Backlight_OFF;
+        LCD_Delay(10);
+
+        /* 2. 关闭显示 (DISPOFF: 0x28) */
+        LCD_WriteCommand(0x28);
+        LCD_Delay(10);
+
+        /* 3. 进入深度休眠 (SLPIN: 0x10，切断高压电荷泵，功耗从 8mA 降至 <20uA) */
+        LCD_WriteCommand(0x10);
+        LCD_Delay(120); /* ST7789 规格书要求 SLPIN 需等待 120ms 放电完毕 */
+
+        s_lcd_is_sleeping = 1;
+    }
+}
+
+void LCD_ExitSleep(void)
+{
+    if (s_lcd_is_sleeping)
+    {
+        /* 1. 退出休眠唤醒显示 IC (SLPOUT: 0x11) */
+        LCD_WriteCommand(0x11);
+        LCD_Delay(120); /* ST7789 规格书要求 SLPOUT 需等待 120ms 建立稳定供电 */
+
+        /* 2. 开启显示 (DISPON: 0x29) */
+        LCD_WriteCommand(0x29);
+        LCD_Delay(20);
+
+        /* 3. 点亮背光 */
+        LCD_Backlight_ON;
+
+        s_lcd_is_sleeping = 0;
+    }
+}
+
+uint8_t LCD_IsSleeping(void)
+{
+    return s_lcd_is_sleeping;
+}

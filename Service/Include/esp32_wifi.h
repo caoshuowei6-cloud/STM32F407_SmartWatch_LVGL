@@ -82,4 +82,9 @@ bool        ESP32_MQTT_SyncHistory(void);
 /* FreeRTOS 后台任务定期轮询状态机 */
 void        ESP32_WiFi_TaskLoop(void);
 
+/* 低功耗调制解调器休眠与唤醒控制 (Modem-Sleep) */
+void        ESP32_WiFi_EnterSleep(void);
+void        ESP32_WiFi_ExitSleep(void);
+bool        ESP32_WiFi_IsSleeping(void);
+
 #endif /* __ESP32_WIFI_H */

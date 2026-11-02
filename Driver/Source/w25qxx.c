@@ -41,6 +41,36 @@ static uint8_t W25QXX_ReadWriteByte(uint8_t TxData)
 /**
   * @brief  初始化 W25QXX 底层硬件 SPI1 与 GPIO
   */
+static bool s_w25q_is_powerdown = false;
+
+void W25QXX_PowerDown(void)
+{
+    if (!s_w25q_is_powerdown)
+    {
+        W25QXX_CS_LOW();
+        W25QXX_ReadWriteByte(W25X_PowerDown);
+        W25QXX_CS_HIGH();
+        s_w25q_is_powerdown = true;
+    }
+}
+
+void W25QXX_Wakeup(void)
+{
+    if (s_w25q_is_powerdown)
+    {
+        W25QXX_CS_LOW();
+        W25QXX_ReadWriteByte(W25X_ReleasePowerDown);
+        W25QXX_CS_HIGH();
+        for (volatile uint32_t i = 0; i < 200; i++) { __NOP(); }
+        s_w25q_is_powerdown = false;
+    }
+}
+
+bool W25QXX_IsPowerDown(void)
+{
+    return s_w25q_is_powerdown;
+}
+
 void W25QXX_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -163,6 +193,7 @@ void W25QXX_Write_Disable(void)
   */
 void W25QXX_Erase_Sector(uint32_t Dst_Addr)
 {
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_Write_Enable();
     W25QXX_Wait_Busy();
 
@@ -203,6 +234,7 @@ void W25QXX_Erase_Block(uint32_t Dst_Addr)
   */
 void W25QXX_Read(uint8_t *pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead)
 {
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_CS_LOW();
 
     W25QXX_ReadWriteByte(W25X_ReadData);
@@ -277,6 +309,7 @@ void W25QXX_Write_NoCheck(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByte
   */
 void W25QXX_Write(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
 {
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_Write_NoCheck(pBuffer, WriteAddr, NumByteToWrite);
 }
 

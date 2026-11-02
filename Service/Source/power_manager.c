@@ -7,6 +7,9 @@
 
 #include "power_manager.h"
 #include "lcd_spi_154.h"
+#include "w25qxx.h"
+#include "mpu6050.h"
+#include "esp32_wifi.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <stdio.h>
@@ -32,9 +35,22 @@ void Power_Manager_Wakeup(void)
 {
     if (s_pm_state == PM_STATE_STANDBY)
     {
-        LCD_Backlight_ON;
+        printf("[PowerManager] Waking up from Standby Mode...\r\n");
+
+        /* 1. 唤醒片外 W25Q64 SPI Flash (发送 0xAB) */
+        W25QXX_Wakeup();
+
+        /* 2. 唤醒 MPU6050 恢复六轴全功能 (恢复陀螺仪工作) */
+        MPU6050_ExitLowPowerMode();
+
+        /* 3. 唤醒 ST7789 LCD (发送 0x11 SLPOUT + 开启显示与背光) */
+        LCD_ExitSleep();
+
+        /* 4. 唤醒 ESP32-C3 退出 Modem-Sleep */
+        ESP32_WiFi_ExitSleep();
+
         s_pm_state = PM_STATE_ACTIVE;
-        printf("[PowerManager] Screen Woken Up (Backlight ON)!\r\n");
+        printf("[PowerManager] Fully Awake! Screen, Gyro, Flash Online.\r\n");
     }
     s_last_active_tick = xTaskGetTickCount();
 }
@@ -43,9 +59,22 @@ void Power_Manager_Sleep(void)
 {
     if (s_pm_state == PM_STATE_ACTIVE)
     {
-        LCD_Backlight_OFF;
+        printf("[PowerManager] Entering Deep Standby Mode...\r\n");
+
+        /* 1. ST7789 屏幕深度休眠 (关闭背光 + 发送 0x10 SLPIN 切断驱动 IC 电荷泵，降耗 ~8mA) */
+        LCD_EnterSleep();
+
+        /* 2. MPU6050 陀螺仪断电休眠 (仅保留加速度计，立省 ~3.6mA) */
+        MPU6050_EnterLowPowerMode();
+
+        /* 3. W25Q64 进入深度掉电模式 (发送 0xB9，静态电流 <1uA) */
+        W25QXX_PowerDown();
+
+        /* 4. ESP32-C3 进入低功耗 Modem-Sleep (保持连网，射频周期性休眠，功耗降至 3~10mA) */
+        ESP32_WiFi_EnterSleep();
+
         s_pm_state = PM_STATE_STANDBY;
-        printf("[PowerManager] Entering Standby (Backlight OFF, Power Saved 70%%)!\r\n");
+        printf("[PowerManager] Standby Active: LCD Sleep, Gyro Off, Flash Sleep. Power saved >85%%!\r\n");
     }
 }
 
@@ -145,6 +174,7 @@ void Power_Manager_CheckWristAction(float pitch, float roll, int16_t gx, int16_t
         return;
     }
 
+    static float s_prev_pitch = -90.0f;
     now = xTaskGetTickCount();
 
     /* 唤醒后 2 秒防抖冷却期 */
@@ -155,10 +185,21 @@ void Power_Manager_CheckWristAction(float pitch, float roll, int16_t gx, int16_t
 
     gyro_mag = (int32_t)abs(gx) + (int32_t)abs(gy);
 
-    /* 1. 检测翻转角速度启动特征 */
+    /* 1. 检测启动特征：支持陀螺仪角速度或重力俯仰角剧烈上抬特征 (零陀螺仪亦可识别) */
     if (!s_wrist_motion_detected)
     {
+        bool motion_trigger = false;
         if (gyro_mag > 2200)
+        {
+            motion_trigger = true;
+        }
+        else if (s_prev_pitch < -35.0f && pitch >= -30.0f)
+        {
+            /* 从下垂姿态快速抬起进入看表水平线 */
+            motion_trigger = true;
+        }
+
+        if (motion_trigger)
         {
             s_wrist_motion_detected = true;
             s_motion_start_tick = now;
@@ -201,4 +242,5 @@ void Power_Manager_CheckWristAction(float pitch, float roll, int16_t gx, int16_t
             }
         }
     }
+    s_prev_pitch = pitch;
 }

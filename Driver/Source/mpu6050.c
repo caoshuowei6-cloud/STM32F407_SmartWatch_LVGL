@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    mpu6050.c
-  * @brief   STM32F407 MPU6050 驱动、姿态互补滤波与动态计步算法实现 (SCL=PF1, SDA=PF0)
+  * @brief   STM32F407 MPU6050 驱动、姿态互补滤�与动态��算法实� (SCL=PF1, SDA=PF0)
   ******************************************************************************
   */
 
@@ -12,10 +12,10 @@
 #include <stdio.h>
 #include <math.h>
 
-/* 默认 I2C 地址（AD0 接地为 0xD0/0xD1，AD0 接高电平为 0xD2/0xD3） */
+/* 默� I2C 地址（AD0 接地� 0xD0/0xD1，AD0 接高电平� 0xD2/0xD3� */
 static uint8_t  s_mpu_addr = 0xD0;
 
-/* 姿态与计步常量 (对照 F1 经典参数) */
+/* 姿�与计�常� (对照 F1 经典参数) */
 #define GYRO_SCALE              16.4f    /* ±2000 dps -> 16.4 LSB/(deg/s) */
 #define ACCEL_SCALE             2048.0f  /* ±16g -> 2048 LSB/g */
 #define STEP_PEAK_THRESHOLD_G   0.20f
@@ -31,8 +31,8 @@ static uint32_t s_step_count = 0;
 static int16_t  s_raw_ax = 0, s_raw_ay = 0, s_raw_az = 0;
 static int16_t  s_raw_gx = 0, s_raw_gy = 0, s_raw_gz = 0;
 
-/* ---------------- 模拟 I2C 底层时序 (引脚映射依托 bsp_board.h 解耦) ---------------- */
-/* 采用标准经久验证的时序架构，微秒级延时确保杜邦线与上拉电平可靠爬升 */
+/* ---------------- 模拟 I2C 底层时序 (引脚映射依托 bsp_board.h 解�) ---------------- */
+/* 采用标准经久验证的时序架构，�秒级延时�保杜邦线与上拉电平可靠爬� */
 
 static void MPU_I2C_W_SCL(uint8_t bit)
 {
@@ -137,7 +137,7 @@ static uint8_t MPU6050_ReadReg(uint8_t reg)
     MPU_I2C_SendByte(s_mpu_addr | 0x01);
     MPU_I2C_ReceiveAck();
     data = MPU_I2C_ReceiveByte();
-    MPU_I2C_SendAck(1); /* 读单字节发送 NACK */
+    MPU_I2C_SendAck(1); /* 读单字节发� NACK */
     MPU_I2C_Stop();
 
     return data;
@@ -153,15 +153,15 @@ static bool MPU6050_ProbeAddr(uint8_t addr)
     return (ack == 0);
 }
 
-/* ---------------- MPU6050 协议与解算 ---------------- */
+/* ---------------- MPU6050 协�与解� ---------------- */
 
 bool MPU6050_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
     uint8_t who;
 
-    /* 1. 初始化 GPIOF PF0(SDA), PF1(SCL) 开漏输出上拉 */
-    /* 1. 初始化板级定义 GPIO SCL/SDA 开漏上拉 */
+    /* 1. 初�化 GPIOF PF0(SDA), PF1(SCL) �漏输出上� */
+    /* 1. 初�化板级定义 GPIO SCL/SDA �漏上� */
     RCC_AHB1PeriphClockCmd(BOARD_MPU_I2C_CLK, ENABLE);
 
     GPIO_InitStructure.GPIO_Pin   = BOARD_MPU_I2C_SCL_PIN | BOARD_MPU_I2C_SDA_PIN;
@@ -173,9 +173,9 @@ bool MPU6050_Init(void)
 
     MPU_I2C_W_SCL(1);
     MPU_I2C_W_SDA(1);
-    Delay_ms(30); /* 等待传感器上电供电建立 */
+    Delay_ms(30); /* 等待传感器上电供电建� */
 
-    /* 2. 自动探测 I2C 设备地址 (0xD0 还是 0xD2) */
+    /* 2. �动探� I2C 设�地� (0xD0 还是 0xD2) */
     if (MPU6050_ProbeAddr(0xD0))
     {
         s_mpu_addr = 0xD0;
@@ -191,16 +191,16 @@ bool MPU6050_Init(void)
         return false;
     }
 
-    /* 3. 唤醒配置芯片寄存器（严格对齐 F1 验证配置） */
-    MPU6050_WriteReg(0x6B, 0x01); /* PWR_MGMT_1: 唤醒，选择 X 轴陀螺仪作为时钟源 */
+    /* 3. 唤醒配置�片寄存器（严格�齐 F1 验证配置� */
+    MPU6050_WriteReg(0x6B, 0x01); /* PWR_MGMT_1: 唤醒，�择 X 轴陀螺仪作为时钟� */
     Delay_ms(10);
-    MPU6050_WriteReg(0x6C, 0x00); /* PWR_MGMT_2: 六轴全开 */
-    MPU6050_WriteReg(0x19, 0x04); /* SMPLRT_DIV: 采样率分频 (200Hz) */
-    MPU6050_WriteReg(0x1A, 0x06); /* CONFIG: 低通滤波器 5Hz */
-    MPU6050_WriteReg(0x1B, 0x18); /* GYRO_CONFIG: 满量程 ±2000 dps */
-    MPU6050_WriteReg(0x1C, 0x18); /* ACCEL_CONFIG: 满量程 ±16g */
+    MPU6050_WriteReg(0x6C, 0x00); /* PWR_MGMT_2: �轴全� */
+    MPU6050_WriteReg(0x19, 0x04); /* SMPLRT_DIV: 采样率分� (200Hz) */
+    MPU6050_WriteReg(0x1A, 0x06); /* CONFIG: 低�滤波器 5Hz */
+    MPU6050_WriteReg(0x1B, 0x18); /* GYRO_CONFIG: 满量� ±2000 dps */
+    MPU6050_WriteReg(0x1C, 0x18); /* ACCEL_CONFIG: 满量� ±16g */
 
-    /* 4. 读取 WHO_AM_I 验证并打印日志 */
+    /* 4. 读取 WHO_AM_I 验证并打印日� */
     who = MPU6050_ReadReg(0x75);
     printf("[MPU6050] Connected at addr 0x%02X, WHO_AM_I = 0x%02X\r\n", s_mpu_addr, who);
 
@@ -259,8 +259,35 @@ void MPU6050_GetRawData(int16_t * ax, int16_t * ay, int16_t * az,
 }
 
 /**
-  * @brief  姿态互补滤波解算与动态计步处理（建议 20ms~50ms 周期调用）
+  * @brief  姿�互补滤波解算与动����理（建� 20ms~50ms 周期调用�
   */
+
+static bool s_mpu_low_power = false;
+
+void MPU6050_EnterLowPowerMode(void)
+{
+    if (!s_mpu_online || s_mpu_low_power) return;
+
+    /* �����ڲ� 8MHz ����ʱ��Դ�����ر� X/Y/Z 3 �������ǵ�Դ (��ʡ ~3.6mA) */
+    MPU6050_WriteReg(0x6B, 0x00); /* PWR_MGMT_1: Internal 8MHz clock */
+    MPU6050_WriteReg(0x6C, 0x07); /* PWR_MGMT_2: Standby XG, YG, ZG (�����Ƕϵ�) */
+    s_mpu_low_power = true;
+}
+
+void MPU6050_ExitLowPowerMode(void)
+{
+    if (!s_mpu_online || !s_mpu_low_power) return;
+
+    /* �ָ�ѡ�� X ����������Ϊ�߾���ʱ��Դ�����ָ� 6 ��ȫ�� */
+    MPU6050_WriteReg(0x6B, 0x01); /* PWR_MGMT_1: X-gyro clock */
+    MPU6050_WriteReg(0x6C, 0x00); /* PWR_MGMT_2: All 6 axes active */
+    s_mpu_low_power = false;
+}
+
+bool MPU6050_IsLowPowerMode(void)
+{
+    return s_mpu_low_power;
+}
 void MPU6050_Update(void)
 {
     static uint32_t last_tick = 0;
@@ -295,7 +322,7 @@ void MPU6050_Update(void)
     if (dt <= 0.001f || dt > 0.5f) dt = 0.05f;
     last_tick = now;
 
-    /* 1. 动态计步算法 (去除低频重力分量，检测特征波峰) */
+    /* 1. 动���算� (去除低�重力分量，�测特征波�) */
     accel_magnitude = sqrtf((float)s_raw_ax * s_raw_ax +
                             (float)s_raw_ay * s_raw_ay +
                             (float)s_raw_az * s_raw_az) / ACCEL_SCALE;
@@ -314,7 +341,7 @@ void MPU6050_Update(void)
         step_armed = 0;
     }
 
-    /* 2. 姿态互补滤波解算 */
+    /* 2. 姿�互补滤波解� */
     roll_g  = s_roll  + ((float)s_raw_gx / GYRO_SCALE) * dt;
     pitch_g = s_pitch + ((float)s_raw_gy / GYRO_SCALE) * dt;
     yaw_g   = s_yaw   + ((float)s_raw_gz / GYRO_SCALE) * dt;
@@ -322,9 +349,18 @@ void MPU6050_Update(void)
     roll_a  = atan2f((float)s_raw_ay, (float)s_raw_az) * 180.0f / 3.14159265f;
     pitch_a = atan2f(-(float)s_raw_ax, (float)s_raw_az) * 180.0f / 3.14159265f;
 
-    s_roll  = 0.96f * roll_g + 0.04f * roll_a;
-    s_pitch = 0.96f * pitch_g + 0.04f * pitch_a;
-    s_yaw   = yaw_g;
+    if (s_mpu_low_power)
+    {
+        /* �͹��Ĵ���ģʽ���������ѹرգ�ֱ�������������ٶȼƸ��¸���/����� (0 ������Ư��) */
+        s_roll  = roll_a;
+        s_pitch = pitch_a;
+    }
+    else
+    {
+        s_roll  = 0.96f * roll_g + 0.04f * roll_a;
+        s_pitch = 0.96f * pitch_g + 0.04f * pitch_a;
+        s_yaw   = yaw_g;
+    }
 }
 
 void MPU6050_GetAttitude(float * pitch, float * roll, float * yaw)

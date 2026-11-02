@@ -151,6 +151,12 @@ void 	LCD_DrawImage(uint16_t x,uint16_t y,uint16_t width,uint16_t height,const u
 #define 	LCD_Backlight_OFF  	GPIO_ResetBits(LCD_Backlight_PORT,LCD_Backlight_PIN)	// 低电平，关闭背光
 
 
+
+/* 低功耗深度休眠控制接口 */
+void    LCD_EnterSleep(void);
+void    LCD_ExitSleep(void);
+uint8_t LCD_IsSleeping(void);
+
 #endif  // __LCD_130_H
 
 

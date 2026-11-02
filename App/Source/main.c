@@ -98,7 +98,15 @@ static void Task_Key(void *pvParameters)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        if (Power_Manager_GetState() == PM_STATE_STANDBY)
+        {
+            /* 息屏待机态：30ms 轮询消抖 (人手按键持续 100~200ms，30ms 确保 0 漏按，同时减少 66% 唤醒) */
+            vTaskDelay(pdMS_TO_TICKS(30));
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
     }
 }
 
@@ -126,16 +134,26 @@ static void Task_UI(void *pvParameters)
                 if (key_val != 0)
                 {
                     /* 企业�?OTA 互斥保护：空中升级固件接收期间全面锁定按键，防止抢占 CPU 与总线冲突 */
-                                        /* 1. 低功耗电源管理：优先允许按键点亮屏幕，保证升级期间随时能看表盘与状态 */
-                    if (Power_Manager_OnKey(key_val))
-                    {
-                        continue;
-                    }
-
-                    /* 2. 外部 Flash 暂存期间：放行按键操作与 UI 响应，并提示后台下载中 */
-                    if (OTA_GetState() == OTA_STATE_RECEIVING)
-                    {
-                        printf("[OTA Active] Key %d processed. Firmware streaming in background to W25Q64.\r\n", key_val);
+                                        /* 1. 低功耗电源管理：优先允许按键点亮屏幕，保证升级期间随时能看表盘与状态 */
+
+                    if (Power_Manager_OnKey(key_val))
+
+                    {
+
+                        continue;
+
+                    }
+
+
+
+                    /* 2. 外部 Flash 暂存期间：放行按键操作与 UI 响应，并提示后台下载中 */
+
+                    if (OTA_GetState() == OTA_STATE_RECEIVING)
+
+                    {
+
+                        printf("[OTA Active] Key %d processed. Firmware streaming in background to W25Q64.\r\n", key_val);
+
                     }
                     printf("[KeyQueue] Recv: %d\r\n", key_val);
                     UI_Watch_HandleKey(key_val);
@@ -219,8 +237,15 @@ static void Task_Sensor(void *pvParameters)
             }
         }
 
-        /* 释放 CPU 20ms */
-        vTaskDelay(pdMS_TO_TICKS(20));
+        /* 释放 CPU：待机态降频至 10Hz (100ms) 采样，足够灵敏捕获抬腕动作，但减少 80% CPU 唤醒与 I2C 通信 */
+        if (Power_Manager_GetState() == PM_STATE_STANDBY)
+        {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(20));
+        }
     }
 }
 

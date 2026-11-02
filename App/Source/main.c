@@ -84,44 +84,27 @@ static void Task_Key(void *pvParameters)
     uint8_t key_val = 0;
     (void)pvParameters;
 
-    printf("[FreeRTOS] Key Task Initialized with EXTI Wakeup (Priority 3).\r\n");
+    printf("[FreeRTOS] Key Task Initialized (Priority 3).\r\n");
 
     while (1)
     {
+        key_val = Key_GetNum();
+        if (key_val != 0)
+        {
+            if (s_key_queue != NULL)
+            {
+                /* 采用非阻塞入队，若队列已满则丢弃，避免高优先级任务永久挂�?*/
+                xQueueSend(s_key_queue, &key_val, pdMS_TO_TICKS(10));
+            }
+        }
+
         if (Power_Manager_GetState() == PM_STATE_STANDBY)
         {
-            /* 待机状态：阻塞在 EXTI 硬件中断信号量上，超时 150ms 兼顾周期降频轮询与极致省电 */
-            if (KEY_WaitForWakeup(pdMS_TO_TICKS(150)) == pdPASS)
-            {
-                /* EXTI 外部硬件中断瞬间捕获按键按下！立即唤醒屏幕与外设 */
-                Power_Manager_Wakeup();
-            }
-            else
-            {
-                /* 150ms 超时备份检测 (检测共用引脚 KEY3) */
-                key_val = Key_GetNum();
-                if (key_val != 0)
-                {
-                    Power_Manager_Wakeup();
-                    if (s_key_queue != NULL)
-                    {
-                        xQueueSend(s_key_queue, &key_val, pdMS_TO_TICKS(10));
-                    }
-                }
-            }
+            /* 息屏待机态：30ms 轮询消抖 (人手按键持续 100~200ms，30ms 确保 0 漏按，同时减少 66% 唤醒) */
+            vTaskDelay(pdMS_TO_TICKS(30));
         }
         else
         {
-            /* 交互活跃状态：10ms 高频消抖轮询，保证 UI 界面与长按操作极致流畅 */
-            key_val = Key_GetNum();
-            if (key_val != 0)
-            {
-                if (s_key_queue != NULL)
-                {
-                    /* 采用非阻塞入队，若队列已满则丢弃，避免高优先级任务永久挂起 */
-                    xQueueSend(s_key_queue, &key_val, pdMS_TO_TICKS(10));
-                }
-            }
             vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
@@ -220,59 +203,33 @@ static void Task_UI(void *pvParameters)
    ============================================================================ */
 static void Task_Sensor(void *pvParameters)
 {
-    TickType_t last_env_tick = xTaskGetTickCount();
-    int16_t s_last_ax = 0, s_last_ay = 0, s_last_az = 0;
-    uint16_t s_still_counter = 0;
-    float pitch, roll, yaw;
-    int16_t gx, gy, gz;
-    int16_t ax, ay, az;
-    int32_t accel_diff;
-    uint32_t env_interval_ms;
+    TickType_t last_1s_tick = xTaskGetTickCount();
     (void)pvParameters;
 
     printf("[FreeRTOS] Sensor Task Initialized (Priority 1).\r\n");
 
     while (1)
     {
-        /* 1. MPU6050 计步与姿态解算 */
+        /* 1. MPU6050 50Hz 高频互补滤波与动态计步解�?(20ms 周期) */
         MPU6050_Update();
 
         /* 抬腕亮屏手势识别：仅在息屏待机状态下进行特征匹配，亮屏后自动停止计算 */
         if (Power_Manager_GetState() == PM_STATE_STANDBY)
         {
+            float pitch, roll, yaw;
+            int16_t gx, gy, gz;
             MPU6050_GetAttitude(&pitch, &roll, &yaw);
-            MPU6050_GetRawData(&ax, &ay, &az, &gx, &gy, &gz);
+            MPU6050_GetRawData(NULL, NULL, NULL, &gx, &gy, &gz);
             Power_Manager_CheckWristAction(pitch, roll, gx, gy, gz);
-
-            /* 静置自适应降频检测：若连续多次三轴加速度差值低于阈值，判定手表平放桌上静止 */
-            accel_diff = abs((int)ax - (int)s_last_ax) + abs((int)ay - (int)s_last_ay) + abs((int)az - (int)s_last_az);
-            s_last_ax = ax;
-            s_last_ay = ay;
-            s_last_az = az;
-
-            if (accel_diff < 500)
-            {
-                if (s_still_counter < 300) s_still_counter++;
-            }
-            else
-            {
-                s_still_counter = 0;
-            }
-        }
-        else
-        {
-            s_still_counter = 0;
         }
 
-        /* 2. 环境温湿度 (AHT20) 与电池电压采样：
-           活跃态 1s 采样一次；息屏待机态降频至 30s 采样一次，极大减少无谓的 I2C 总线事务与 ADC 转换耗电 */
-        env_interval_ms = (Power_Manager_GetState() == PM_STATE_STANDBY) ? 30000 : 1000;
-        if ((xTaskGetTickCount() - last_env_tick) >= pdMS_TO_TICKS(env_interval_ms))
+        /* 2. 1000ms 周期采样 AHT20 温湿度与 PA0 电压并同步参数存�?*/
+        if ((xTaskGetTickCount() - last_1s_tick) >= pdMS_TO_TICKS(1000))
         {
-            last_env_tick = xTaskGetTickCount();
+            last_1s_tick = xTaskGetTickCount();
             AHT20_Read(NULL, NULL);
             ADC_Battery_GetVoltage();
-            /* OTA 升级期间禁止 Flash 参数同步，彻底杜绝 Flash 写入冲突 */
+            /* OTA 升级期间禁止 Flash 参数同步，彻底杜�?Flash 写入冲突 */
             if (OTA_GetState() != OTA_STATE_RECEIVING)
             {
                 Param_Storage_Sync();
@@ -280,20 +237,10 @@ static void Task_Sensor(void *pvParameters)
             }
         }
 
-        /* 释放 CPU：
-           - 活跃态：20ms (50Hz) 采样与动态计步解算；
-           - 待机动态态 (戴在手上)：100ms (10Hz) 采样捕获抬腕动作；
-           - 待机静置态 (放桌上静止 > 3秒)：进一步降频至 300ms (3.3Hz)，功耗降至冰点 */
+        /* 释放 CPU：待机态降频至 10Hz (100ms) 采样，足够灵敏捕获抬腕动作，但减少 80% CPU 唤醒与 I2C 通信 */
         if (Power_Manager_GetState() == PM_STATE_STANDBY)
         {
-            if (s_still_counter >= 30)
-            {
-                vTaskDelay(pdMS_TO_TICKS(300));
-            }
-            else
-            {
-                vTaskDelay(pdMS_TO_TICKS(100));
-            }
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
         else
         {
@@ -372,12 +319,14 @@ int main(void)
     /* 1. NVIC 中断优先级分组：必须配置�?4 (全部 4 位均为抢占优先级，FreeRTOS 铁律) */
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 
-    /* 2. 板级外设驱动初始�?*/
-    Delay_Init();       /* SysTick 1ms 初始�?(同时提供裸机启动期时�? */
-    LED_Init();         /* PC13 绿灯 (低电平亮) */
-    KEY_Init();         /* 按键初始�?(PB1, PA6, PA4, PA15) */
+    /* 2. 串口控制台最优先初始化 (115200 8N1)：保证系统自检日志与崩溃诊断第一时间可用 */
     Usart_Config();
-    cm_backtrace_init("STM32F407_SmartWatch", "V1.0", FIRMWARE_VERSION_STR);     /* USART1 115200 8N1 */
+    cm_backtrace_init("STM32F407_SmartWatch", "V1.0", FIRMWARE_VERSION_STR);
+
+    /* 3. 基础时钟与板级外设驱动初始化 */
+    Delay_Init();       /* SysTick 1ms 初始化(同时提供裸机启动期时钟) */
+    LED_Init();         /* PC13 绿灯 (低电平亮) */
+    KEY_Init();         /* 按键初始化 (PB1, PC0, PC1, PA15) */
 
     RTC_F407_Init();    /* STM32F407 硬件日历 RTC 初始�?(LSE/LSI 自动容错) */
     ADC_Battery_Init(); /* PA0 电池 12-bit ADC 初始�?*/

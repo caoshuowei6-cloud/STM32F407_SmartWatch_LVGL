@@ -40,9 +40,6 @@ void KEY_Init(void)
     /* 初始化 板载SW1 (PA15) */
     GPIO_InitStructure.GPIO_Pin = KEY_BOARD_PIN;
     GPIO_Init(KEY_BOARD_PORT, &GPIO_InitStructure);
-
-    /* 初始化按键 EXTI 外部中断低功耗唤醒 */
-    KEY_EXTI_Init();
 }
 
 /**
@@ -141,112 +138,5 @@ void Key_Tick(void)
                 Key_Num = PreState;
             }
         }
-    }
-}
-
-static SemaphoreHandle_t s_sem_key_wakeup = NULL;
-
-/**
-  * @brief  初始化按键引脚 EXTI 外部中断 (PB1->EXTI1, PC0->EXTI0, PA15->EXTI15)
-  * @note   使用 CMSIS 直接配置寄存器，0 库函数依赖，中断优先级配置为 6 (低于 FreeRTOS SysCall 5)
-  */
-void KEY_EXTI_Init(void)
-{
-    if (s_sem_key_wakeup == NULL)
-    {
-        s_sem_key_wakeup = xSemaphoreCreateBinary();
-    }
-
-    /* 1. 使能 SYSCFG 外设时钟 */
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-
-    /* 2. 映射引脚至 EXTI 外部中断线:
-     *    - KEY2 (PC0)    -> EXTI0  (EXTICR[0] bits 3:0 = 0x2)
-     *    - KEY1 (PB1)    -> EXTI1  (EXTICR[0] bits 7:4 = 0x1)
-     *    - KEY_BOARD(PA15)-> EXTI15 (EXTICR[3] bits 15:12 = 0x0)
-     */
-    SYSCFG->EXTICR[0] = (SYSCFG->EXTICR[0] & ~0x00FFU) | 0x0012U;
-    SYSCFG->EXTICR[3] = (SYSCFG->EXTICR[3] & ~0xF000U) | 0x0000U;
-
-    /* 3. 配置下降沿触发 (按键按下接地拉低) */
-    EXTI->FTSR |= (1U << 0) | (1U << 1) | (1U << 15);
-    EXTI->RTSR &= ~((1U << 0) | (1U << 1) | (1U << 15));
-
-    /* 4. 清除挂起标志位 */
-    EXTI->PR = (1U << 0) | (1U << 1) | (1U << 15);
-
-    /* 5. 解除中断屏蔽 (使能 EXTI0, EXTI1, EXTI15) */
-    EXTI->IMR |= (1U << 0) | (1U << 1) | (1U << 15);
-
-    /* 6. 配置 NVIC 中断优先级 (FreeRTOS 安全优先级 6) 并使能中断通道 */
-    NVIC_SetPriority(EXTI0_IRQn, 6);
-    NVIC_EnableIRQ(EXTI0_IRQn);
-
-    NVIC_SetPriority(EXTI1_IRQn, 6);
-    NVIC_EnableIRQ(EXTI1_IRQn);
-
-    NVIC_SetPriority(EXTI15_10_IRQn, 6);
-    NVIC_EnableIRQ(EXTI15_10_IRQn);
-}
-
-BaseType_t KEY_WaitForWakeup(TickType_t xTicksToWait)
-{
-    if (s_sem_key_wakeup != NULL)
-    {
-        return xSemaphoreTake(s_sem_key_wakeup, xTicksToWait);
-    }
-    return pdFAIL;
-}
-
-void KEY_SignalWakeup(void)
-{
-    if (s_sem_key_wakeup != NULL)
-    {
-        xSemaphoreGive(s_sem_key_wakeup);
-    }
-}
-
-void KEY_DrainWakeupEvent(void)
-{
-    if (s_sem_key_wakeup != NULL)
-    {
-        xSemaphoreTake(s_sem_key_wakeup, 0);
-    }
-}
-
-static void KEY_SignalWakeupFromISR(void)
-{
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    if (s_sem_key_wakeup != NULL)
-    {
-        xSemaphoreGiveFromISR(s_sem_key_wakeup, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-}
-
-void EXTI0_IRQHandler(void)
-{
-    if (EXTI->PR & (1U << 0))
-    {
-        EXTI->PR = (1U << 0);
-        KEY_SignalWakeupFromISR();
-    }
-}
-
-void EXTI1_IRQHandler(void)
-{
-    if (EXTI->PR & (1U << 1))
-    {
-        EXTI->PR = (1U << 1);
-        KEY_SignalWakeupFromISR();
-    }
-}
-
-void EXTI15_10_IRQHandler(void)
-{
-    if (EXTI->PR & (1U << 15))
-    {
-        EXTI->PR = (1U << 15);
-        KEY_SignalWakeupFromISR();
     }
 }

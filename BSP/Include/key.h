@@ -30,19 +30,10 @@
 
 #define KEY3_LONG_PRESS_MS  1000
 
-#include "FreeRTOS.h"
-#include "semphr.h"
-
 /* 函数声明 */
-void        KEY_Init(void);
-uint8_t     Key_GetNum(void);
-void        Key_Tick(void);
-void        Key3_Tick(void);
-
-/* EXTI 外部中断低功耗唤醒接口 */
-void        KEY_EXTI_Init(void);
-BaseType_t  KEY_WaitForWakeup(TickType_t xTicksToWait);
-void        KEY_SignalWakeup(void);
-void        KEY_DrainWakeupEvent(void);
+void    KEY_Init(void);
+uint8_t Key_GetNum(void);
+void    Key_Tick(void);
+void    Key3_Tick(void);
 
 #endif /* __KEY_H */

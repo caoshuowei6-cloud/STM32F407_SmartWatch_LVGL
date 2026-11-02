@@ -193,8 +193,7 @@ void W25QXX_Write_Disable(void)
   */
 void W25QXX_Erase_Sector(uint32_t Dst_Addr)
 {
-    bool was_powerdown = s_w25q_is_powerdown;
-    if (was_powerdown) W25QXX_Wakeup();
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_Write_Enable();
     W25QXX_Wait_Busy();
 
@@ -206,7 +205,6 @@ void W25QXX_Erase_Sector(uint32_t Dst_Addr)
     W25QXX_CS_HIGH();
 
     W25QXX_Wait_Busy();
-    if (was_powerdown) W25QXX_PowerDown();
 }
 
 /**
@@ -236,8 +234,7 @@ void W25QXX_Erase_Block(uint32_t Dst_Addr)
   */
 void W25QXX_Read(uint8_t *pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead)
 {
-    bool was_powerdown = s_w25q_is_powerdown;
-    if (was_powerdown) W25QXX_Wakeup();
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_CS_LOW();
 
     W25QXX_ReadWriteByte(W25X_ReadData);
@@ -251,7 +248,6 @@ void W25QXX_Read(uint8_t *pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead)
     }
 
     W25QXX_CS_HIGH();
-    if (was_powerdown) W25QXX_PowerDown();
 }
 
 /**
@@ -313,10 +309,8 @@ void W25QXX_Write_NoCheck(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByte
   */
 void W25QXX_Write(uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
 {
-    bool was_powerdown = s_w25q_is_powerdown;
-    if (was_powerdown) W25QXX_Wakeup();
+    if (s_w25q_is_powerdown) W25QXX_Wakeup();
     W25QXX_Write_NoCheck(pBuffer, WriteAddr, NumByteToWrite);
-    if (was_powerdown) W25QXX_PowerDown();
 }
 
 /**

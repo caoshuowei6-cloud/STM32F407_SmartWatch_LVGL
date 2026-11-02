@@ -5,7 +5,7 @@
   * @note    存储载体: W25Q64 外部 SPI NOR Flash (8MB)
   *          - 0x400000: 黄金固件备份区 (OTA_W25Q_BACKUP_BASE_ADDR)
   *          - 0x480000: 新固件分片暂存区 (OTA_W25Q_STAGING_BASE_ADDR)
-  *          - RTC 备份域: DR6 ~ DR9 (严格独立隔离)
+  *          - 0x500000 / 0x501000: Flash A/B 乒乓元数据双槽位 (防掉电撕裂)
   ******************************************************************************
   */
 
@@ -13,9 +13,6 @@
 #include "w25qxx.h"
 #include "aes.h"
 #include "stm32f4xx_flash.h"
-#include "stm32f4xx_pwr.h"
-#include "stm32f4xx_rcc.h"
-#include "stm32f4xx_rtc.h"
 #include "stm32f4xx_usart.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -68,6 +65,165 @@ static uint32_t OTA_CalcCRC32_Update(uint32_t crc, const uint8_t *data, uint32_t
 }
 
 /* ============================================================================
+   Flash A/B 乒乓双区元数据存储引擎 (递增序列号 + 自身 CRC32 防掉电撕裂)
+   ============================================================================ */
+static uint32_t OTA_Meta_CalcCRC(const ota_metadata_t *meta)
+{
+    uint32_t crc = 0xFFFFFFFFU;
+    crc = OTA_CalcCRC32_Update(crc, (const uint8_t *)meta, sizeof(ota_metadata_t) - sizeof(uint32_t));
+    return ~crc;
+}
+
+bool OTA_Metadata_Read(ota_metadata_t *out_meta)
+{
+    ota_metadata_t meta_a, meta_b;
+    bool valid_a = false;
+    bool valid_b = false;
+
+    if (out_meta == NULL)
+    {
+        return false;
+    }
+
+    /* 1. 读取 Slot A 并严格校验 */
+    W25QXX_Read((uint8_t *)&meta_a, OTA_W25Q_META_SLOT_A, sizeof(ota_metadata_t));
+    if (meta_a.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_a.struct_crc == OTA_Meta_CalcCRC(&meta_a))
+    {
+        valid_a = true;
+    }
+
+    /* 2. 读取 Slot B 并严格校验 */
+    W25QXX_Read((uint8_t *)&meta_b, OTA_W25Q_META_SLOT_B, sizeof(ota_metadata_t));
+    if (meta_b.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_b.struct_crc == OTA_Meta_CalcCRC(&meta_b))
+    {
+        valid_b = true;
+    }
+
+    /* 3. 乒乓双区仲裁选择最新且完整的记录 */
+    if (valid_a && valid_b)
+    {
+        if (meta_a.seq >= meta_b.seq)
+        {
+            *out_meta = meta_a;
+        }
+        else
+        {
+            *out_meta = meta_b;
+        }
+        return true;
+    }
+    else if (valid_a)
+    {
+        *out_meta = meta_a;
+        return true;
+    }
+    else if (valid_b)
+    {
+        *out_meta = meta_b;
+        return true;
+    }
+
+    /* 4. 两区均未初始化或损坏时，初始化保底默认值 */
+    memset(out_meta, 0, sizeof(ota_metadata_t));
+    out_meta->struct_magic = OTA_META_MAGIC_STRUCT;
+    out_meta->seq          = 0;
+    out_meta->ota_magic    = OTA_MAGIC_CONFIRMED;
+    out_meta->trial_count  = 0;
+    out_meta->fw_size      = 0;
+    out_meta->fw_crc       = 0;
+    out_meta->struct_crc   = OTA_Meta_CalcCRC(out_meta);
+    return false;
+}
+
+bool OTA_Metadata_Write(const ota_metadata_t *new_meta)
+{
+    ota_metadata_t meta_a, meta_b, target_meta;
+    bool valid_a = false;
+    bool valid_b = false;
+    uint32_t target_addr;
+    uint32_t next_seq = 1;
+
+    if (new_meta == NULL)
+    {
+        return false;
+    }
+
+    /* 1. 探查当前 A/B 槽位状态以确定写入目标 */
+    W25QXX_Read((uint8_t *)&meta_a, OTA_W25Q_META_SLOT_A, sizeof(ota_metadata_t));
+    if (meta_a.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_a.struct_crc == OTA_Meta_CalcCRC(&meta_a))
+    {
+        valid_a = true;
+    }
+
+    W25QXX_Read((uint8_t *)&meta_b, OTA_W25Q_META_SLOT_B, sizeof(ota_metadata_t));
+    if (meta_b.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_b.struct_crc == OTA_Meta_CalcCRC(&meta_b))
+    {
+        valid_b = true;
+    }
+
+    if (valid_a && valid_b)
+    {
+        if (meta_a.seq >= meta_b.seq)
+        {
+            target_addr = OTA_W25Q_META_SLOT_B;
+            next_seq = meta_a.seq + 1;
+        }
+        else
+        {
+            target_addr = OTA_W25Q_META_SLOT_A;
+            next_seq = meta_b.seq + 1;
+        }
+    }
+    else if (valid_a)
+    {
+        target_addr = OTA_W25Q_META_SLOT_B;
+        next_seq = meta_a.seq + 1;
+    }
+    else if (valid_b)
+    {
+        target_addr = OTA_W25Q_META_SLOT_A;
+        next_seq = meta_b.seq + 1;
+    }
+    else
+    {
+        target_addr = OTA_W25Q_META_SLOT_A;
+        next_seq = 1;
+    }
+
+    /* 2. 构建待写入元数据结构体 */
+    target_meta = *new_meta;
+    target_meta.struct_magic = OTA_META_MAGIC_STRUCT;
+    target_meta.seq          = next_seq;
+    target_meta.reserved[0]  = 0;
+    target_meta.reserved[1]  = 0;
+    target_meta.struct_crc   = OTA_Meta_CalcCRC(&target_meta);
+
+    /* 3. 擦除目标槽位 4KB 扇区并写入 (32 字节写入严格在单 Page 内原子完成) */
+    W25QXX_Erase_Sector(target_addr);
+    W25QXX_Write((uint8_t *)&target_meta, target_addr, sizeof(ota_metadata_t));
+
+    /* 4. 立即回读验证 */
+    ota_metadata_t verify_meta;
+    W25QXX_Read((uint8_t *)&verify_meta, target_addr, sizeof(ota_metadata_t));
+    if (verify_meta.struct_magic == OTA_META_MAGIC_STRUCT &&
+        verify_meta.struct_crc == target_meta.struct_crc)
+    {
+        return true;
+    }
+
+    /* 5. 若目标槽位写入失败，尝试写入对侧备份槽位 */
+    uint32_t fallback_addr = (target_addr == OTA_W25Q_META_SLOT_A) ? OTA_W25Q_META_SLOT_B : OTA_W25Q_META_SLOT_A;
+    W25QXX_Erase_Sector(fallback_addr);
+    W25QXX_Write((uint8_t *)&target_meta, fallback_addr, sizeof(ota_metadata_t));
+    W25QXX_Read((uint8_t *)&verify_meta, fallback_addr, sizeof(ota_metadata_t));
+    return (verify_meta.struct_magic == OTA_META_MAGIC_STRUCT && verify_meta.struct_crc == target_meta.struct_crc);
+}
+
+/* ============================================================================
    初始化与自保状态探活
    ============================================================================ */
 void OTA_Manager_Init(void)
@@ -78,30 +234,31 @@ void OTA_Manager_Init(void)
     s_written_bytes = 0;
     s_aes_enabled   = false;
 
-    /* 开启 PWR 时钟以访问 RTC 备份域 */
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
-    PWR_BackupAccessCmd(ENABLE);
+    ota_metadata_t meta;
+    bool has_meta = OTA_Metadata_Read(&meta);
 
-    uint32_t magic = RTC_ReadBackupRegister(OTA_RTC_REG_MAGIC);
-    uint32_t trial_cnt = RTC_ReadBackupRegister(OTA_RTC_REG_TRIAL_COUNT);
-
-    if (magic == OTA_MAGIC_TRIAL_BOOT)
+    if (has_meta && meta.ota_magic == OTA_MAGIC_TRIAL_BOOT)
     {
-        trial_cnt++;
-        RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, trial_cnt);
+        meta.trial_count++;
         printf("\r\n=======================================================\r\n");
-        printf(" [OTA TRIAL BOOT] Device running in TRIAL MODE (Attempt %u/3)\r\n", trial_cnt);
+        printf(" [OTA TRIAL BOOT] Device running in TRIAL MODE (Attempt %u/3)\r\n", meta.trial_count);
+        printf(" Seq=%u, Expected CRC=0x%08X\r\n", meta.seq, meta.fw_crc);
         printf(" Awaiting stable 30s confirmation before committing to permanent.\r\n");
         printf("=======================================================\r\n\r\n");
 
-        if (trial_cnt > 3)
+        if (meta.trial_count > 3)
         {
             printf("[OTA ROLLBACK] Warning: Trial boot failed > 3 times! Triggering golden rollback...\r\n");
-            RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_ROLLBACK_REQ);
+            meta.ota_magic = OTA_MAGIC_ROLLBACK_REQ;
+            OTA_Metadata_Write(&meta);
             OTA_SafeReboot();
         }
+        else
+        {
+            OTA_Metadata_Write(&meta);
+        }
     }
-    else if (magic == OTA_MAGIC_CONFIRMED)
+    else if (has_meta && meta.ota_magic == OTA_MAGIC_CONFIRMED)
     {
         /* 正常生产稳定固件运行状态 */
     }
@@ -289,7 +446,7 @@ bool OTA_BackupCurrentApp(uint32_t app_size)
 }
 
 /* ============================================================================
-   结束传输：全量 CRC32 终审校验 -> 触发黄金固件备份 -> 置位 RTC 升级标志
+   结束传输：全量 CRC32 终审校验 -> 触发黄金固件备份 -> 写入 Flash A/B 升级元数据
    ============================================================================ */
 bool OTA_Finish(void)
 {
@@ -339,19 +496,19 @@ bool OTA_Finish(void)
     s_ota_state = OTA_STATE_BACKING_UP;
     OTA_BackupCurrentApp(s_fw_size);
 
-    /* 写入 RTC 备份寄存器 (DR6 ~ DR9 专属通道) */
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
-    PWR_BackupAccessCmd(ENABLE);
-
-    RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_UPGRADE_REQ);
-    RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, 0);
-    RTC_WriteBackupRegister(OTA_RTC_REG_FW_SIZE, s_fw_size);
-    RTC_WriteBackupRegister(OTA_RTC_REG_FW_CRC, s_expected_crc);
+    /* 写入 W25Q64 Flash A/B 乒乓元数据区 */
+    ota_metadata_t meta;
+    OTA_Metadata_Read(&meta);
+    meta.ota_magic   = OTA_MAGIC_UPGRADE_REQ;
+    meta.trial_count = 0;
+    meta.fw_size     = s_fw_size;
+    meta.fw_crc      = s_expected_crc;
+    OTA_Metadata_Write(&meta);
 
     s_ota_state = OTA_STATE_READY_TO_REBOOT;
     printf("\r\n=======================================================\r\n");
     printf("   [OTA READY] Dual-zone protection ready!\r\n");
-    printf("   Magic=0x%08X written to RTC_BKP_DR6.\r\n", OTA_MAGIC_UPGRADE_REQ);
+    printf("   Metadata persisted to Flash A/B Ping-Pong Slot (Magic=0x%08X).\r\n", OTA_MAGIC_UPGRADE_REQ);
     printf("   Call OTA_SafeReboot() to execute upgrade.\r\n");
     printf("=======================================================\r\n\r\n");
 
@@ -372,17 +529,15 @@ void OTA_Abort(void)
    ============================================================================ */
 void OTA_Confirm_Success(void)
 {
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
-    PWR_BackupAccessCmd(ENABLE);
-
-    uint32_t magic = RTC_ReadBackupRegister(OTA_RTC_REG_MAGIC);
-    if (magic == OTA_MAGIC_TRIAL_BOOT)
+    ota_metadata_t meta;
+    if (OTA_Metadata_Read(&meta) && meta.ota_magic == OTA_MAGIC_TRIAL_BOOT)
     {
-        RTC_WriteBackupRegister(OTA_RTC_REG_MAGIC, OTA_MAGIC_CONFIRMED);
-        RTC_WriteBackupRegister(OTA_RTC_REG_TRIAL_COUNT, 0);
+        meta.ota_magic   = OTA_MAGIC_CONFIRMED;
+        meta.trial_count = 0;
+        OTA_Metadata_Write(&meta);
         printf("\r\n=======================================================\r\n");
         printf(" [OTA SUCCESS] New firmware verified stable for 30s!   \r\n");
-        printf(" RTC Magic cleared to 0. Promotion to permanent COMPLETE.\r\n");
+        printf(" Metadata updated to CONFIRMED (Seq=%u). Promotion COMPLETE.\r\n", meta.seq);
         printf("=======================================================\r\n\r\n");
     }
 }

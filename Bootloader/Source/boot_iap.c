@@ -2,15 +2,14 @@
   ******************************************************************************
   * @file    boot_iap.c
   * @brief   STM32F407 独立轻量级 Bootloader 核心跳转与 W25Q64 外部 Flash 搬运实现
-  *          支持 W25Q64 硬件 SPI1 轮询读取、片内 Flash 扇区擦写、CRC32 双重校验与试运行回滚
+  *          支持 W25Q64 硬件 SPI1 轮询读取、片内 Flash 扇区擦写、CRC32 双重校验、
+  *          Flash A/B 乒乓元数据维护 (防掉电撕裂) 与试运行自愈回滚
   ******************************************************************************
   */
 
 #include "boot_iap.h"
 #include "stm32f4xx_flash.h"
 #include "stm32f4xx_rcc.h"
-#include "stm32f4xx_pwr.h"
-#include "stm32f4xx_rtc.h"
 #include "stm32f4xx_gpio.h"
 #include "stm32f4xx_spi.h"
 #include <stdio.h>
@@ -124,6 +123,66 @@ void Boot_W25Q_Read(uint8_t *pBuffer, uint32_t ReadAddr, uint32_t NumByteToRead)
     W25Q_CS_HIGH();
 }
 
+static uint8_t Boot_W25Q_ReadSR(void)
+{
+    uint8_t byte = 0;
+    W25Q_CS_LOW();
+    Boot_W25Q_ReadWriteByte(0x05U); /* Read Status Register 1 */
+    byte = Boot_W25Q_ReadWriteByte(0xFF);
+    W25Q_CS_HIGH();
+    return byte;
+}
+
+static void Boot_W25Q_WaitBusy(void)
+{
+    uint32_t timeout = 500000;
+    while ((Boot_W25Q_ReadSR() & 0x01U) == 0x01U)
+    {
+        if (--timeout == 0) break;
+    }
+}
+
+static void Boot_W25Q_WriteEnable(void)
+{
+    W25Q_CS_LOW();
+    Boot_W25Q_ReadWriteByte(0x06U); /* Write Enable 指令 */
+    W25Q_CS_HIGH();
+}
+
+void Boot_W25Q_EraseSector(uint32_t SectorAddr)
+{
+    Boot_W25Q_WriteEnable();
+    Boot_W25Q_WaitBusy();
+
+    W25Q_CS_LOW();
+    Boot_W25Q_ReadWriteByte(0x20U); /* Sector Erase 4KB 指令 */
+    Boot_W25Q_ReadWriteByte((uint8_t)(SectorAddr >> 16));
+    Boot_W25Q_ReadWriteByte((uint8_t)(SectorAddr >> 8));
+    Boot_W25Q_ReadWriteByte((uint8_t)SectorAddr);
+    W25Q_CS_HIGH();
+
+    Boot_W25Q_WaitBusy();
+}
+
+void Boot_W25Q_Write(const uint8_t *pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
+{
+    /* 元数据仅 32 字节且按 4KB 对齐，严格位于单个 256 字节 Page 内 */
+    Boot_W25Q_WriteEnable();
+
+    W25Q_CS_LOW();
+    Boot_W25Q_ReadWriteByte(0x02U); /* Page Program 指令 */
+    Boot_W25Q_ReadWriteByte((uint8_t)(WriteAddr >> 16));
+    Boot_W25Q_ReadWriteByte((uint8_t)(WriteAddr >> 8));
+    Boot_W25Q_ReadWriteByte((uint8_t)WriteAddr);
+
+    for (uint16_t i = 0; i < NumByteToWrite; i++)
+    {
+        Boot_W25Q_ReadWriteByte(pBuffer[i]);
+    }
+    W25Q_CS_HIGH();
+    Boot_W25Q_WaitBusy();
+}
+
 /* ============================================================================
    标准 IEEE 802.3 CRC32 计算函数 (与 App 及 Python 保持绝对一致)
    ============================================================================ */
@@ -182,6 +241,163 @@ uint32_t Boot_CalculateCRC32_W25Q(uint32_t w25q_addr, uint32_t len)
         remaining -= chunk;
     }
     return ~crc;
+}
+
+/* ============================================================================
+   Flash A/B 乒乓双区元数据存储引擎 (Bootloader 侧实现)
+   ============================================================================ */
+static uint32_t Boot_Meta_CalcCRC(const ota_metadata_t *meta)
+{
+    return Boot_CalculateCRC32_Internal((uint32_t)meta, sizeof(ota_metadata_t) - sizeof(uint32_t));
+}
+
+bool Boot_Metadata_Read(ota_metadata_t *out_meta)
+{
+    ota_metadata_t meta_a, meta_b;
+    bool valid_a = false;
+    bool valid_b = false;
+
+    if (out_meta == NULL)
+    {
+        return false;
+    }
+
+    /* 1. 读取 Slot A 并严格校验 */
+    Boot_W25Q_Read((uint8_t *)&meta_a, W25Q_META_SLOT_A, sizeof(ota_metadata_t));
+    if (meta_a.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_a.struct_crc == Boot_Meta_CalcCRC(&meta_a))
+    {
+        valid_a = true;
+    }
+
+    /* 2. 读取 Slot B 并严格校验 */
+    Boot_W25Q_Read((uint8_t *)&meta_b, W25Q_META_SLOT_B, sizeof(ota_metadata_t));
+    if (meta_b.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_b.struct_crc == Boot_Meta_CalcCRC(&meta_b))
+    {
+        valid_b = true;
+    }
+
+    /* 3. 乒乓双区仲裁选择最新且完整的记录 */
+    if (valid_a && valid_b)
+    {
+        if (meta_a.seq >= meta_b.seq)
+        {
+            *out_meta = meta_a;
+        }
+        else
+        {
+            *out_meta = meta_b;
+        }
+        return true;
+    }
+    else if (valid_a)
+    {
+        *out_meta = meta_a;
+        return true;
+    }
+    else if (valid_b)
+    {
+        *out_meta = meta_b;
+        return true;
+    }
+
+    /* 4. 两区均未初始化或损坏时，初始化保底默认值 */
+    memset(out_meta, 0, sizeof(ota_metadata_t));
+    out_meta->struct_magic = OTA_META_MAGIC_STRUCT;
+    out_meta->seq          = 0;
+    out_meta->ota_magic    = OTA_MAGIC_CONFIRMED;
+    out_meta->trial_count  = 0;
+    out_meta->fw_size      = 0;
+    out_meta->fw_crc       = 0;
+    out_meta->struct_crc   = Boot_Meta_CalcCRC(out_meta);
+    return false;
+}
+
+bool Boot_Metadata_Write(const ota_metadata_t *new_meta)
+{
+    ota_metadata_t meta_a, meta_b, target_meta;
+    bool valid_a = false;
+    bool valid_b = false;
+    uint32_t target_addr;
+    uint32_t next_seq = 1;
+
+    if (new_meta == NULL)
+    {
+        return false;
+    }
+
+    /* 1. 探查当前 A/B 槽位状态以确定写入目标 */
+    Boot_W25Q_Read((uint8_t *)&meta_a, W25Q_META_SLOT_A, sizeof(ota_metadata_t));
+    if (meta_a.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_a.struct_crc == Boot_Meta_CalcCRC(&meta_a))
+    {
+        valid_a = true;
+    }
+
+    Boot_W25Q_Read((uint8_t *)&meta_b, W25Q_META_SLOT_B, sizeof(ota_metadata_t));
+    if (meta_b.struct_magic == OTA_META_MAGIC_STRUCT &&
+        meta_b.struct_crc == Boot_Meta_CalcCRC(&meta_b))
+    {
+        valid_b = true;
+    }
+
+    if (valid_a && valid_b)
+    {
+        if (meta_a.seq >= meta_b.seq)
+        {
+            target_addr = W25Q_META_SLOT_B;
+            next_seq = meta_a.seq + 1;
+        }
+        else
+        {
+            target_addr = W25Q_META_SLOT_A;
+            next_seq = meta_b.seq + 1;
+        }
+    }
+    else if (valid_a)
+    {
+        target_addr = W25Q_META_SLOT_B;
+        next_seq = meta_a.seq + 1;
+    }
+    else if (valid_b)
+    {
+        target_addr = W25Q_META_SLOT_A;
+        next_seq = meta_b.seq + 1;
+    }
+    else
+    {
+        target_addr = W25Q_META_SLOT_A;
+        next_seq = 1;
+    }
+
+    /* 2. 构建待写入元数据结构体 */
+    target_meta = *new_meta;
+    target_meta.struct_magic = OTA_META_MAGIC_STRUCT;
+    target_meta.seq          = next_seq;
+    target_meta.reserved[0]  = 0;
+    target_meta.reserved[1]  = 0;
+    target_meta.struct_crc   = Boot_Meta_CalcCRC(&target_meta);
+
+    /* 3. 擦除目标槽位 4KB 扇区并写入 (32 字节写入在单 Page 内原子完成) */
+    Boot_W25Q_EraseSector(target_addr);
+    Boot_W25Q_Write((const uint8_t *)&target_meta, target_addr, sizeof(ota_metadata_t));
+
+    /* 4. 立即回读验证 */
+    ota_metadata_t verify_meta;
+    Boot_W25Q_Read((uint8_t *)&verify_meta, target_addr, sizeof(ota_metadata_t));
+    if (verify_meta.struct_magic == OTA_META_MAGIC_STRUCT &&
+        verify_meta.struct_crc == target_meta.struct_crc)
+    {
+        return true;
+    }
+
+    /* 5. 若目标槽位写入失败，尝试写入对侧备份槽位 */
+    uint32_t fallback_addr = (target_addr == W25Q_META_SLOT_A) ? W25Q_META_SLOT_B : W25Q_META_SLOT_A;
+    Boot_W25Q_EraseSector(fallback_addr);
+    Boot_W25Q_Write((const uint8_t *)&target_meta, fallback_addr, sizeof(ota_metadata_t));
+    Boot_W25Q_Read((uint8_t *)&verify_meta, fallback_addr, sizeof(ota_metadata_t));
+    return (verify_meta.struct_magic == OTA_META_MAGIC_STRUCT && verify_meta.struct_crc == target_meta.struct_crc);
 }
 
 /* ============================================================================
@@ -383,96 +599,103 @@ void Boot_JumpToApp(uint32_t app_addr)
 }
 
 /* ============================================================================
-   开机自检与企业级双区 OTA 状态机 (升级搬运 / 试运行守护 / 崩溃自动回滚)
+   开机自检与企业级双区 OTA 状态机 (Flash A/B 乒乓元数据维护 / 试运行 / 自动回滚)
    ============================================================================ */
 void Boot_CheckAndUpdate(void)
 {
-    /* 1. 开启电源与备份域时钟 */
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
-    PWR_BackupAccessCmd(ENABLE);
-
-    /* 2. 读取 RTC_BKP_DR6 核心生命周期魔数 */
-    uint32_t magic = RTC_ReadBackupRegister(BOOT_RTC_REG_MAGIC);
-
-    /* 3. 初始化外部 SPI Flash (W25Q64) */
+    /* 1. 初始化外部 SPI Flash (W25Q64) */
     bool w25q_ok = Boot_W25Q_Init();
 
-    if (magic == OTA_MAGIC_UPGRADE_REQ)
-    {
-        uint32_t fw_size      = RTC_ReadBackupRegister(BOOT_RTC_REG_FW_SIZE);
-        uint32_t expected_crc = RTC_ReadBackupRegister(BOOT_RTC_REG_FW_CRC);
+    /* 2. 读取 Flash A/B 乒乓槽位中的 OTA 元数据 (完全摆脱 RTC/电池依赖) */
+    ota_metadata_t meta;
+    bool has_meta = false;
 
+    if (w25q_ok)
+    {
+        has_meta = Boot_Metadata_Read(&meta);
+    }
+    else
+    {
+        memset(&meta, 0, sizeof(ota_metadata_t));
+    }
+
+    if (has_meta && meta.ota_magic == OTA_MAGIC_UPGRADE_REQ)
+    {
         printf("\r\n=======================================================\r\n");
-        printf("   [BOOT] UPGRADE REQUEST DETECTED (DR6=0x5A5A5A5A)!     \r\n");
-        printf("   Firmware Size: %u bytes (%u KB)                     \r\n", fw_size, fw_size / 1024U);
-        printf("   Expected CRC : 0x%08X                               \r\n", expected_crc);
+        printf("   [BOOT] UPGRADE REQUEST DETECTED (Seq=%u, Magic=0x5A5A5A5A)!\r\n", meta.seq);
+        printf("   Firmware Size: %u bytes (%u KB)                     \r\n", meta.fw_size, meta.fw_size / 1024U);
+        printf("   Expected CRC : 0x%08X                               \r\n", meta.fw_crc);
         printf("=======================================================\r\n");
 
-        if (!w25q_ok || fw_size < 4096U || fw_size > APP_MAX_SIZE)
+        if (meta.fw_size < 4096U || meta.fw_size > APP_MAX_SIZE)
         {
-            printf("[BOOT] Error: W25Q offline or illegal size (%u B)! Aborting upgrade.\r\n", fw_size);
-            RTC_WriteBackupRegister(BOOT_RTC_REG_MAGIC, 0);
+            printf("[BOOT] Error: Illegal firmware size (%u B)! Aborting upgrade.\r\n", meta.fw_size);
+            meta.ota_magic = OTA_MAGIC_CONFIRMED;
+            Boot_Metadata_Write(&meta);
         }
         else
         {
             /* 步骤 1: 校验 W25Q64 暂存区镜像的完整性 */
             printf("[BOOT] Verifying W25Q64 Staging Area CRC32 (0x%06X)...\r\n", W25Q_STAGING_BASE_ADDR);
-            uint32_t staging_crc = Boot_CalculateCRC32_W25Q(W25Q_STAGING_BASE_ADDR, fw_size);
+            uint32_t staging_crc = Boot_CalculateCRC32_W25Q(W25Q_STAGING_BASE_ADDR, meta.fw_size);
 
-            if (staging_crc != expected_crc)
+            if (staging_crc != meta.fw_crc)
             {
-                printf("[BOOT] CRC MISMATCH! Computed: 0x%08X, Expected: 0x%08X\r\n", staging_crc, expected_crc);
+                printf("[BOOT] CRC MISMATCH! Computed: 0x%08X, Expected: 0x%08X\r\n", staging_crc, meta.fw_crc);
                 printf("[BOOT] Upgrade CANCELLED. Staging image is corrupted or incomplete!\r\n");
-                RTC_WriteBackupRegister(BOOT_RTC_REG_MAGIC, 0);
+                meta.ota_magic = OTA_MAGIC_CONFIRMED;
+                Boot_Metadata_Write(&meta);
             }
             else
             {
                 printf("[BOOT] Staging CRC32 100%% VERIFIED (0x%08X)!\r\n", staging_crc);
 
                 /* 步骤 2: 擦除片内 Flash APP 扇区 (Sector 5~7) */
-                if (!Boot_EraseAppSectors(fw_size))
+                if (!Boot_EraseAppSectors(meta.fw_size))
                 {
                     printf("[BOOT] Critical: App sector erase failed! Upgrade aborted.\r\n");
                 }
                 else
                 {
                     /* 步骤 3: 从 W25Q64 暂存区搬运至片内 Flash */
-                    if (!Boot_CopyFromW25QToApp(W25Q_STAGING_BASE_ADDR, fw_size))
+                    if (!Boot_CopyFromW25QToApp(W25Q_STAGING_BASE_ADDR, meta.fw_size))
                     {
                         printf("[BOOT] Critical: Firmware copy failed! Triggering golden recovery...\r\n");
-                        Boot_CopyFromW25QToApp(W25Q_BACKUP_BASE_ADDR, fw_size);
+                        Boot_CopyFromW25QToApp(W25Q_BACKUP_BASE_ADDR, meta.fw_size);
                     }
                     else
                     {
                         /* 步骤 4: 校验新写入片内 Flash 的运行固件 CRC32 */
                         printf("[BOOT] Verifying newly installed App in internal Flash...\r\n");
-                        uint32_t app_crc = Boot_CalculateCRC32_Internal(APP_ADDR, fw_size);
+                        uint32_t app_crc = Boot_CalculateCRC32_Internal(APP_ADDR, meta.fw_size);
 
-                        if (app_crc == expected_crc)
+                        if (app_crc == meta.fw_crc)
                         {
                             printf("\r\n=======================================================\r\n");
                             printf("   [BOOT] OTA UPGRADE SUCCESS! Installed to Flash.     \r\n");
                             printf("   Switching to TRIAL-BOOT MODE (30s trial protection). \r\n");
                             printf("=======================================================\r\n\r\n");
 
-                            /* 置位试运行魔数与复位试运行计数器 */
-                            RTC_WriteBackupRegister(BOOT_RTC_REG_MAGIC, OTA_MAGIC_TRIAL_BOOT);
-                            RTC_WriteBackupRegister(BOOT_RTC_REG_TRIAL_COUNT, 0);
+                            /* 置位试运行魔数并持久化至 Flash A/B 槽位 */
+                            meta.ota_magic   = OTA_MAGIC_TRIAL_BOOT;
+                            meta.trial_count = 0;
+                            Boot_Metadata_Write(&meta);
                         }
                         else
                         {
                             printf("[BOOT] Critical: App CRC mismatch (0x%08X != 0x%08X)! Rolling back...\r\n",
-                                   app_crc, expected_crc);
-                            Boot_EraseAppSectors(fw_size);
-                            Boot_CopyFromW25QToApp(W25Q_BACKUP_BASE_ADDR, fw_size);
-                            RTC_WriteBackupRegister(BOOT_RTC_REG_MAGIC, 0);
+                                   app_crc, meta.fw_crc);
+                            Boot_EraseAppSectors(meta.fw_size);
+                            Boot_CopyFromW25QToApp(W25Q_BACKUP_BASE_ADDR, meta.fw_size);
+                            meta.ota_magic = OTA_MAGIC_CONFIRMED;
+                            Boot_Metadata_Write(&meta);
                         }
                     }
                 }
             }
         }
     }
-    else if (magic == OTA_MAGIC_ROLLBACK_REQ)
+    else if (has_meta && meta.ota_magic == OTA_MAGIC_ROLLBACK_REQ)
     {
         printf("\r\n=======================================================\r\n");
         printf("   [BOOT ALERT] EMERGENCY ROLLBACK REQUEST DETECTED!    \r\n");
@@ -484,22 +707,22 @@ void Boot_CheckAndUpdate(void)
         {
             Boot_EraseAppSectors(APP_MAX_SIZE);
             Boot_CopyFromW25QToApp(W25Q_BACKUP_BASE_ADDR, APP_MAX_SIZE);
-            RTC_WriteBackupRegister(BOOT_RTC_REG_MAGIC, OTA_MAGIC_CONFIRMED);
-            RTC_WriteBackupRegister(BOOT_RTC_REG_TRIAL_COUNT, 0);
+            meta.ota_magic   = OTA_MAGIC_CONFIRMED;
+            meta.trial_count = 0;
+            Boot_Metadata_Write(&meta);
             printf("[BOOT] Golden Backup restored successfully! Device recovered.\r\n\r\n");
         }
     }
-    else if (magic == OTA_MAGIC_TRIAL_BOOT)
+    else if (has_meta && meta.ota_magic == OTA_MAGIC_TRIAL_BOOT)
     {
-        uint32_t trial_cnt = RTC_ReadBackupRegister(BOOT_RTC_REG_TRIAL_COUNT);
-        printf("[BOOT] System running in Trial-Boot Mode (Trial attempts: %u).\r\n", trial_cnt);
+        printf("[BOOT] System running in Trial-Boot Mode (Trial attempts: %u).\r\n", meta.trial_count);
     }
     else
     {
-        printf("[BOOT] Normal production boot (DR6 = 0x%08X).\r\n", magic);
+        printf("[BOOT] Normal production boot (Magic = 0x%08X, Seq = %u).\r\n", meta.ota_magic, meta.seq);
     }
 
-    /* 4. 执行跳转：若 App 有效则跳转；若因掉电受损则尝试黄金备份自动保活 */
+    /* 3. 执行跳转：若 App 有效则跳转；若因掉电受损则尝试黄金备份自动保活 */
     if (Boot_IsAppValid(APP_ADDR))
     {
         Boot_JumpToApp(APP_ADDR);

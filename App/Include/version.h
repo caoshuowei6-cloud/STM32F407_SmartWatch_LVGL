@@ -11,7 +11,7 @@
 #define FIRMWARE_VERSION_MAJOR      4
 #define FIRMWARE_VERSION_MINOR      2
 #define FIRMWARE_VERSION_PATCH      0
-#define FIRMWARE_VERSION_STR        "V4.3 OTA"
+#define FIRMWARE_VERSION_STR        "V2.0 OTA"
 #define FIRMWARE_BUILD_DATE         __DATE__
 #define FIRMWARE_BUILD_TIME         __TIME__
 

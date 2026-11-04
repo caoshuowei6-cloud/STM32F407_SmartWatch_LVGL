@@ -79,6 +79,11 @@ static QueueHandle_t s_key_queue = NULL;
    - 栈大�? 256 words (1024 字节)
    - 周期:   10ms 周期查询消抖
    ============================================================================ */
+/* 低功耗任务执行频率统计打点计数器 (用于串口心跳日志实时可视化验证) */
+static volatile uint32_t s_rate_key_cnt = 0;
+static volatile uint32_t s_rate_sensor_cnt = 0;
+static volatile uint32_t s_rate_wifi_cnt = 0;
+
 static void Task_Key(void *pvParameters)
 {
     uint8_t key_val = 0;
@@ -88,6 +93,7 @@ static void Task_Key(void *pvParameters)
 
     while (1)
     {
+        s_rate_key_cnt++;
         key_val = Key_GetNum();
         if (key_val != 0)
         {
@@ -211,6 +217,7 @@ static void Task_Sensor(void *pvParameters)
     while (1)
     {
         /* 1. MPU6050 50Hz 高频互补滤波与动态计步解�?(20ms 周期) */
+        s_rate_sensor_cnt++;
         MPU6050_Update();
 
         /* 抬腕亮屏手势识别：仅在息屏待机状态下进行特征匹配，亮屏后自动停止计算 */
@@ -267,9 +274,18 @@ static void Task_WiFi(void *pvParameters)
     while (1)
     {
         /* 执行 WiFi 状态机轮询 (自适应探活与数据同�? */
+        s_rate_wifi_cnt++;
         ESP32_WiFi_TaskLoop();
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        /* 待机态节拍降频至 200ms (5Hz 探活)，活跃态 10ms (100Hz 响应) */
+        if (Power_Manager_GetState() == PM_STATE_STANDBY)
+        {
+            vTaskDelay(pdMS_TO_TICKS(200));
+        }
+        else
+        {
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
     }
 }
 
@@ -281,24 +297,43 @@ static void Task_WiFi(void *pvParameters)
 static void Task_Heartbeat(void *pvParameters)
 {
     uint32_t beat_count = 0;
+    uint32_t uptime_s;
+    uint32_t sensor_hz_x10;
+    uint32_t key_hz_x10;
+    uint32_t wifi_hz_x10;
+    bool is_standby;
     (void)pvParameters;
 
     printf("[FreeRTOS] Heartbeat Task Initialized (Priority 1).\r\n");
 
     while (1)
     {
-        /* 翻转 PC13 绿灯 (低电平亮�?00ms 周期指示操作系统平稳运行) */
+        /* 翻转 PC13 绿灯 (低电平亮，500ms 周期指示操作系统平稳运行) */
         LED1_Toggle;
         vTaskDelay(pdMS_TO_TICKS(500));
 
         beat_count++;
-        /* �?5 秒输出一次心跳与剩余堆内存大�?*/
+        /* 每 5 秒输出一次心跳、堆内存以及各核心任务过去 5 秒的实测执行频率 */
         if ((beat_count % 10) == 0)
         {
-            uint32_t uptime_s = beat_count / 2;
-            printf("[OS Heartbeat] UpTime: %u s | Free Heap: %u bytes\r\n",
+            uptime_s = beat_count / 2;
+            sensor_hz_x10 = (s_rate_sensor_cnt * 10) / 5;
+            key_hz_x10    = (s_rate_key_cnt * 10) / 5;
+            wifi_hz_x10   = (s_rate_wifi_cnt * 10) / 5;
+            is_standby    = (Power_Manager_GetState() == PM_STATE_STANDBY);
+
+            s_rate_sensor_cnt = 0;
+            s_rate_key_cnt    = 0;
+            s_rate_wifi_cnt   = 0;
+
+            printf("[OS Heartbeat] UpTime: %u s | Free Heap: %u bytes | [Rate 5s] Sensor: %u.%u Hz, Key: %u.%u Hz, WiFi: %u.%u Hz (%s)\r\n",
                    (unsigned int)uptime_s,
-                   (unsigned int)xPortGetFreeHeapSize());
+                   (unsigned int)xPortGetFreeHeapSize(),
+                   (unsigned int)(sensor_hz_x10 / 10), (unsigned int)(sensor_hz_x10 % 10),
+                   (unsigned int)(key_hz_x10 / 10),    (unsigned int)(key_hz_x10 % 10),
+                   (unsigned int)(wifi_hz_x10 / 10),   (unsigned int)(wifi_hz_x10 % 10),
+                   is_standby ? "STANDBY THROTTLED" : "ACTIVE FULL-SPEED");
+
             if (uptime_s == 30)
             {
                 OTA_Confirm_Success();

@@ -95,3 +95,37 @@ void SysTick_Handler(void)
     Key_Tick();
     Key3_Tick();
 }
+
+
+/**
+  * @brief  EXTI0 中断服务函数 (PC0 / KEY2 唤醒)
+  */
+void EXTI0_IRQHandler(void)
+{
+    if (EXTI_GetITStatus(EXTI_Line0) != RESET)
+    {
+        EXTI_ClearITPendingBit(EXTI_Line0);
+    }
+}
+
+/**
+  * @brief  EXTI1 中断服务函数 (PB1 / KEY1 唤醒)
+  */
+void EXTI1_IRQHandler(void)
+{
+    if (EXTI_GetITStatus(EXTI_Line1) != RESET)
+    {
+        EXTI_ClearITPendingBit(EXTI_Line1);
+    }
+}
+
+/**
+  * @brief  EXTI15_10 中断服务函数 (PA15 / 板载 KEY 唤醒)
+  */
+void EXTI15_10_IRQHandler(void)
+{
+    if (EXTI_GetITStatus(EXTI_Line15) != RESET)
+    {
+        EXTI_ClearITPendingBit(EXTI_Line15);
+    }
+}

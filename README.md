@@ -1,13 +1,13 @@
 # STM32F407 + FreeRTOS + LVGL 9 企业级智能穿戴手表系统
 
 [![Platform](https://img.shields.io/badge/Platform-STM32F407ZGT6-blue.svg)](https://www.st.com/)
-[![Co-Processor](https://img.shields.io/badge/Co--Processor-ESP32--C3-red.svg)](https://www.espressif.com/)
+[![Connectivity](https://img.shields.io/badge/Connectivity-ESP32--C3%20(AT%20Modem)-red.svg)](https://www.espressif.com/)
 [![RTOS](https://img.shields.io/badge/RTOS-FreeRTOS%20V10.4.3-green.svg)](https://www.freertos.org/)
 [![GUI](https://img.shields.io/badge/GUI-LVGL%209.x-orange.svg)](https://lvgl.io/)
 [![Security](https://img.shields.io/badge/Security-AES--128--CBC%20%2B%20CRC32-brightgreen.svg)]()
 [![Resilience](https://img.shields.io/badge/OTA-Flash%20A%2FB%20PingPong-success.svg)]()
 
-本工程是一套面向商业级智能穿戴产品的完整嵌入式固件解决方案，采用 **STM32F407ZGT6（主控）+ ESP32-C3（Wi-Fi/BLE 协处理器）** 双 MCU 架构，构建了高可靠的 **多任务操作系统分层、LVGL 9 动效框架、cJSON 物模型上报** 与 **端到端 AES-128 加密空中 OTA 固件升级系统（含 Flash A/B 乒乓双区防掉电撕裂容灾引擎）**。
+本工程是一套面向商业级智能穿戴产品的完整嵌入式固件解决方案，采用 **STM32F407ZGT6（主控）+ ESP32-C3（Wi-Fi 通信模组）** 的 Host-Controller 架构，将 TCP/IP 与 MQTT 网络栈全权下沉至 ESP32-C3，主控专职负责高实时性多任务调度与图形交互，构建了高可靠的 **多任务操作系统分层、LVGL 9 动效框架、cJSON 物模型上报** 与 **端到端 AES-128 加密空中 OTA 固件升级系统（含 Flash A/B 乒乓双区防掉电撕裂容灾引擎）**。
 
 ---
 
